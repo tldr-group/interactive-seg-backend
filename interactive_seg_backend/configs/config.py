@@ -1,14 +1,48 @@
 from numpy import log2, logspace
 from dataclasses import dataclass, fields, Field, field, asdict
 from json import dumps
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
-GPU_DISALLOWED_FEATURES: list[str] = [
+PossibleFeatures = Literal[
+    "gaussian_blur",
+    "sobel_filter",
+    "hessian_filter",
+    "mean",
+    "minimum",
+    "maximum",
+    "median",
+    "laplacian",
+    "structure_tensor_eigvals",
+    "difference_of_gaussians",
+    "membrane_projections",
+    "bilateral",
+]
+_FEAT_LIST: list[PossibleFeatures] = get_args(PossibleFeatures)  # type: ignore
+FEATURES: set[PossibleFeatures] = {*_FEAT_LIST}
+SCALEFREE_FEATS: list[PossibleFeatures] = _FEAT_LIST[-3:]
+GPU_DISALLOWED_FEATURES: set[PossibleFeatures] = {
     "hessian_filter",
     "minimum",
     "maximum",
     "structure_tensor_eigvals",
-]
+}
+strs_per_singlescale_feat: dict[PossibleFeatures, tuple[str, ...]] = {
+    "gaussian_blur": ("gaussian_blur",),
+    "sobel_filter": ("sobel_filter",),
+    "hessian_filter": (
+        "hess_eig_1",
+        "hess_eig_1",
+        "hess_mod",
+        "hess_trace",
+        "hess_det",
+    ),
+    "mean": ("mean",),
+    "minimum": ("minimum",),
+    "maximum": ("maximum",),
+    "median": ("median",),
+    "laplacian": ("laplacian",),
+    "structure_tensor_eigvals": ("structure_eig_1", "structure_eig_2"),
+}
 # TODO: add json saving / loading
 # TODO: add some example JSONs
 # TODO: add fn that takes state of config and returns list of same length of generated feat stack where
@@ -105,6 +139,61 @@ class FeatureConfig:
         if self.use_gpu:
             self._check_if_filters_allowed_with_gpu()
 
+    def get_filter_strings(self) -> list[str]:
+        out: list[str] = []
+        cls_fields: tuple[Field[Any], ...] = fields(self.__class__)
+
+        singlescale_feats = list(strs_per_singlescale_feat.keys())
+
+        def _get_feat_name(feat: PossibleFeatures, sigma: float) -> list[str]:
+            feat_str_li: list[str] = []
+            if name == "hessian_filter":
+                feat_str_tuple = strs_per_singlescale_feat[name]
+                feat_str_li = [f"{val}_σ{sigma}" for val in feat_str_tuple]
+                if self.add_mod_trace_det_hessian is False:
+                    feat_str_li = feat_str_li[:2]
+            elif name in singlescale_feats:
+                feat_str_tuple = strs_per_singlescale_feat[name]
+                feat_str_li = [f"{val}_σ{sigma}" for val in feat_str_tuple]
+            return feat_str_li
+
+        if self.add_zero_scale_features:
+            for name in ("gaussian_blur", "sobel_filter", "hessian_filter"):
+                is_enabled = self.__getattribute__(name)
+                if is_enabled:
+                    out += _get_feat_name(name, 0)
+
+        for sigma in self.sigmas:
+            for cls_field in cls_fields:
+                name = cls_field.name
+                if name not in FEATURES:
+                    continue
+                is_enabled = self.__getattribute__(name)
+                if not is_enabled:
+                    continue
+
+                if name in singlescale_feats:
+                    out += _get_feat_name(name, sigma)
+
+        for name in SCALEFREE_FEATS:
+            is_enabled = self.__getattribute__(name)
+            if not is_enabled:
+                continue
+
+            if name == "difference_of_gaussians":
+                for i, sigma_1 in enumerate(self.sigmas):
+                    for j in range(i):
+                        sigma_2 = self.sigmas[j]
+                        out.append(f"DoG_σ{sigma_1}_{sigma_2}")
+            elif name == "membrane_projections":
+                projs = ("sum", "mean", "std", "median", "max", "min")
+                out += [f"membrane_{proj}" for proj in projs]
+            elif name == "bilateral":
+                for spatial_radius in (5, 10):
+                    for value_range in (50, 100):
+                        out.append(f"bilateral_σs{spatial_radius}_σv{value_range}")
+        return out
+
     def __repr__(self) -> str:
         to_stringify = asdict(self)
         out_str = f"FEATURE CONFIG: \n`{self.name}`: {self.desc}\n" + dumps(
@@ -158,7 +247,14 @@ class TrainingConfig:
 
 
 if __name__ == "__main__":
-    c = FeatureConfig(sigmas=(1.0, 1.5, 2.0))
+    c = FeatureConfig(
+        sigmas=(1.0, 1.5, 2.0),
+        bilateral=True,
+        laplacian=True,
+        add_mod_trace_det_hessian=False,
+    )
+    foo = c.get_filter_strings()
+    print(foo)
     print(c)
     print(" ")
     t = TrainingConfig(c, "xgb")
