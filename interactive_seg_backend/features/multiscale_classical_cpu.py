@@ -120,7 +120,7 @@ def singlescale_hessian(
     eig2 = trace - np.sqrt((4 * b**2 + (a - d) ** 2))
 
     if return_full:
-        return (mod, trace, det, eig1 / 2.0, eig2 / 2.0)
+        return (eig1 / 2.0, eig2 / 2.0, mod, trace, det)
     else:
         return (eig1 / 2.0, eig2 / 2.0)
 
@@ -341,6 +341,8 @@ def singlescale_singlechannel_features(
     if config.minimum:
         results.append(singlescale_minimum(byte_img, circle_footprint))
 
+    if config.laplacian:
+        results.append(singlescale_laplacian(gaussian_filtered))
     if config.structure_tensor_eigvals:
         structure_out = singlescale_structure_tensor(img, sigma)
         results += structure_out
