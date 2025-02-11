@@ -1,4 +1,6 @@
-from dataclasses import dataclass, fields, Field
+from numpy import log2, logspace
+from dataclasses import dataclass, fields, Field, asdict
+from json import dumps
 from typing import Any
 
 GPU_DISALLOWED_FEATURES: list[str] = [
@@ -63,6 +65,23 @@ class FeatureConfig:
         assert self.min_sigma >= 0, "min_sigma must be greater than (or equal to) 0"
         assert self.max_sigma <= 64, "max_sigma must be less than (or equal to) 64"
 
+        if self.min_sigma != 1.0 or self.max_sigma != 16.0:
+            # update sigmas based on min/max if changed
+            # NB: to set sigmas explicitly, set it in init and don't adjust min/max
+            log_min: float = log2(self.min_sigma)
+            log_max: float = log2(self.max_sigma)
+            num_sigma = int(log_max - log_min + 1)
+            sigmas: tuple[float, ...] = tuple(
+                logspace(
+                    log_min,
+                    log_max,
+                    num=num_sigma,
+                    base=2,
+                    endpoint=True,
+                )
+            )
+            self.sigmas = sigmas
+
         assert self.membrane_thickness >= 1, (
             "membrane_thickness must be greater than (or equal to) 0"
         )
@@ -72,9 +91,16 @@ class FeatureConfig:
         if self.use_gpu:
             self._check_if_filters_allowed_with_gpu()
 
+    def __repr__(self) -> str:
+        to_stringify = asdict(self)
+        out_str = "FEATURE CONFIG: \n" + dumps(
+            to_stringify, ensure_ascii=True, indent=2
+        )
+        return out_str
+
 
 # @dataclass
 # class TrainConfig:
 if __name__ == "__main__":
-    c = FeatureConfig(hessian_filter=True, use_gpu=True)
+    c = FeatureConfig(sigmas=(1.0, 1.5, 2.0))
     print(c)
