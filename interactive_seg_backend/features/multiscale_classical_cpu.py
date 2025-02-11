@@ -22,14 +22,14 @@ from skimage import filters
 from skimage.draw import disk
 from skimage.feature import structure_tensor, structure_tensor_eigenvalues
 from scipy.ndimage import rotate, convolve  # type: ignore
-
+from skimage.util.dtype import img_as_float32
 
 from itertools import combinations_with_replacement
-# from skimage import filters, feature
-# from skimage.util.dtype import img_as_float32
 
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
+
+from interactive_seg_backend.configs import FeatureConfig
 
 from typing import Literal
 
@@ -63,8 +63,8 @@ def make_footprint(sigma: int) -> npt.NDArray[np.uint8]:
 
 
 def singlescale_gaussian(
-    img: npt.NDArray[np.float64], sigma: int, mult: float = 1.0
-) -> npt.NDArray[np.float64]:
+    img: npt.NDArray[np.float32], sigma: int, mult: float = 1.0
+) -> npt.NDArray[np.float32]:
     """Gaussian blur of each pixel in $img of scale/radius $sigma.
 
     :param img: img arr
@@ -74,15 +74,15 @@ def singlescale_gaussian(
     :return: filtered array
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.float64] = filters.gaussian(
+    out: npt.NDArray[np.float32] = filters.gaussian(
         img, sigma=int(mult * sigma), preserve_range=True, truncate=2.0
     )
     return out
 
 
 def singlescale_edges(
-    gaussian_filtered: npt.NDArray[np.float64],
-) -> npt.NDArray[np.float64]:
+    gaussian_filtered: npt.NDArray[np.float32],
+) -> npt.NDArray[np.float32]:
     """Sobel filter applied to gaussian filtered arr of scale sigma to detect edges.
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -90,13 +90,13 @@ def singlescale_edges(
     :return: sobel filtered (edge-detecting) array
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.float64] = filters.sobel(gaussian_filtered)
+    out: npt.NDArray[np.float32] = filters.sobel(gaussian_filtered)
     return out
 
 
 def singlescale_hessian(
-    gaussian_filtered: npt.NDArray[np.float64], return_full: bool = True
-) -> tuple[npt.NDArray[np.float64], ...]:
+    gaussian_filtered: npt.NDArray[np.float32], return_full: bool = True
+) -> tuple[npt.NDArray[np.float32], ...]:
     """Compute mod, trace, det and eigenvalues of Hessian matrix of $gaussian_filtered image (i.e for every pixel).
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -188,8 +188,8 @@ def singlescale_minimum(
 
 
 def singlescale_structure_tensor(
-    img: npt.NDArray[np.float64], sigma: int
-) -> npt.NDArray[np.float64]:
+    img: npt.NDArray[np.float32], sigma: int
+) -> tuple[npt.NDArray[np.float32], ...]:
     """Compute structure tensor eigenvalues of $img in $sigma radius.
 
     :param img: img arr
@@ -199,12 +199,12 @@ def singlescale_structure_tensor(
     :return: largest two eigenvalues of structure tensor at each pixel
     :rtype: np.ndarray
     """
-    tensor: list[npt.NDArray[np.float64]] = structure_tensor(img, sigma)
-    eigvals: npt.NDArray[np.float64] = structure_tensor_eigenvalues(tensor)
-    return eigvals[:2]
+    tensor: list[npt.NDArray[np.float32]] = structure_tensor(img, sigma)
+    eigvals: npt.NDArray[np.float32] = structure_tensor_eigenvalues(tensor)
+    return (eigvals[0], eigvals[1])
 
 
-def singlescale_laplacian(img: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def singlescale_laplacian(img: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     """Compute laplacian of $img on scale $simga. Not currently working.
 
     :param img: img arr
@@ -239,8 +239,8 @@ def bilateral(byte_img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
 
 
 def difference_of_gaussians(
-    gaussian_blurs: list[npt.NDArray[np.float64]],
-) -> list[npt.NDArray[np.float64]]:
+    gaussian_blurs: list[npt.NDArray[np.float32]],
+) -> list[npt.NDArray[np.float32]]:
     """Compute their difference of each arr in $gaussian_blurs (representing different $sigma scales) with smaller arrs.
 
     :param gaussian_blurs: list of arrs of img filtered with gaussian blur at different length scales
@@ -249,7 +249,7 @@ def difference_of_gaussians(
     :rtype: List[np.ndarray]
     """
     # weka computes dog for  each filter of a *lower* sigma
-    dogs: list[npt.NDArray[np.float64]] = []
+    dogs: list[npt.NDArray[np.float32]] = []
     for i in range(len(gaussian_blurs)):
         sigma_1 = gaussian_blurs[i]
         for j in range(i):
@@ -259,11 +259,11 @@ def difference_of_gaussians(
 
 
 def membrane_projections(
-    img: npt.NDArray[np.float64],
+    img: npt.NDArray[np.float32],
     membrane_patch_size: int = 19,
     membrane_thickness: int = 1,
     num_workers: int | None = N_ALLOWED_CPUS,
-) -> list[npt.NDArray[np.float64]]:
+) -> list[npt.NDArray[np.float32]]:
     """Membrane projections.
 
     Create a $membrane_patch_size^2 array with $membrane_thickness central columns set to 1, other entries set to 0.
@@ -290,7 +290,7 @@ def membrane_projections(
     all_kernels = [np.rint(rotate(kernel, angle)) for angle in range(0, 180, 6)]
     # map these across threads to speed up (order unimportant)
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
-        out_angles: list[npt.NDArray[np.float64]] = list(
+        out_angles: list[npt.NDArray[np.float32]] = list(
             ex.map(
                 lambda k: convolve(img, k),
                 all_kernels,
@@ -307,3 +307,49 @@ def membrane_projections(
 
 
 # # %% ===================================MANAGER FUNCTIONS===================================
+
+
+def singlescale_singlechannel_features(
+    raw_img: npt.NDArray[np.uint8], sigma: int, config: FeatureConfig
+):
+    assert len(raw_img.shape) == 2, (
+        f"img shape {raw_img.shape} wrong, should be 2D/singlechannel"
+    )
+    img: npt.NDArray[np.float32] = np.ascontiguousarray(img_as_float32(raw_img))
+    results: list[npt.NDArray[np.uint8 | np.float32]] = []
+    gaussian_filtered = singlescale_gaussian(img, sigma)
+    if config.gaussian_blur:
+        results.append(gaussian_filtered)
+    if config.sobel_filter:
+        results.append(singlescale_edges(gaussian_filtered))
+    if config.hessian_filter:
+        hessian_out = singlescale_hessian(
+            gaussian_filtered, config.add_mod_trace_det_hessian
+        )
+        results += hessian_out
+
+    byte_img = raw_img.astype(np.uint8)
+    circle_footprint = make_footprint(int(np.ceil(sigma)))
+
+    if config.mean:
+        results.append(singlescale_mean(byte_img, circle_footprint))
+    if config.median:
+        results.append(singlescale_median(byte_img, circle_footprint))
+    if config.maximum:
+        results.append(singlescale_maximum(byte_img, circle_footprint))
+    if config.minimum:
+        results.append(singlescale_minimum(byte_img, circle_footprint))
+
+    if config.structure_tensor_eigvals:
+        structure_out = singlescale_structure_tensor(img, sigma)
+        results += structure_out
+
+    return results
+
+
+if __name__ == "__main__":
+    cfg = FeatureConfig(laplacian=True, structure_tensor_eigvals=True)
+    img = np.random.uniform(0, 1, (500, 500))
+    feats = singlescale_singlechannel_features(img, 1.0, cfg)
+    res = np.stack(feats)
+    print(res.shape)
