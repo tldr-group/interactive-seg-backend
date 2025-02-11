@@ -311,12 +311,14 @@ def membrane_projections(
 
 
 def singlescale_singlechannel_features(
-    raw_img: npt.NDArray[np.uint8], sigma: int, config: FeatureConfig
+    img: npt.NDArray[np.float32],
+    byte_img: npt.NDArray[np.uint8],
+    sigma: int,
+    config: FeatureConfig,
 ):
-    assert len(raw_img.shape) == 2, (
-        f"img shape {raw_img.shape} wrong, should be 2D/singlechannel"
+    assert len(img.shape) == 2, (
+        f"img shape {img.shape} wrong, should be 2D/singlechannel"
     )
-    img: npt.NDArray[np.float32] = np.ascontiguousarray(img_as_float32(raw_img))
     results: list[npt.NDArray[np.uint8 | np.float32]] = []
     gaussian_filtered = singlescale_gaussian(img, sigma)
     if config.gaussian_blur:
@@ -329,7 +331,6 @@ def singlescale_singlechannel_features(
         )
         results += hessian_out
 
-    byte_img = raw_img.astype(np.uint8)
     circle_footprint = make_footprint(int(np.ceil(sigma)))
 
     if config.mean:
@@ -373,6 +374,7 @@ def multiscale_features(
     config: FeatureConfig,
     num_workers: int | None = None,
 ) -> npt.NDArray[np.float16 | np.float32 | np.float64]:
+    byte_img = raw_img.astype(np.uint8)
     converted_img: npt.NDArray[np.float32] = np.ascontiguousarray(
         img_as_float32(raw_img)  # type: ignore
     )
@@ -391,7 +393,7 @@ def multiscale_features(
         out_sigmas = list(
             ex.map(
                 lambda sigma: singlescale_singlechannel_features(
-                    raw_img, sigma, config
+                    converted_img, raw_img, sigma, config
                 ),
                 config.sigmas,
             )
@@ -418,7 +420,6 @@ def multiscale_features(
         features += projections
 
     if config.bilateral:
-        byte_img = img.astype(np.uint8)
         bilateral_filtered = bilateral(byte_img)
         features += bilateral_filtered
 
@@ -435,7 +436,7 @@ def multiscale_features(
 
 
 if __name__ == "__main__":
-    cfg = FeatureConfig(laplacian=True, structure_tensor_eigvals=True, cast_to="f16")
+    cfg = FeatureConfig(laplacian=True, structure_tensor_eigvals=True)
     img = (np.random.uniform(0, 1.0, (1000, 1000)) * 255).astype(np.uint8)
     feats = multiscale_features(img, cfg, num_workers=N_ALLOWED_CPUS)
     print(feats.shape)
