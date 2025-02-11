@@ -9,6 +9,7 @@ GPU_DISALLOWED_FEATURES: list[str] = [
     "maximum",
     "structure_tensor_eigvals",
 ]
+# TODO: add json saving / loading
 
 
 @dataclass
@@ -17,6 +18,11 @@ class FeatureConfig:
 
     name: str = "default"
     desc: str = "weka-style features"
+
+    cast_to: Literal["f16", "f32", "f64"] = "f16"
+
+    # weka has a 0.4 * multiplier before its $sigma for the gaussian blurs
+    add_weka_sigma_multiplier: bool = True
     # gaussian blur with std=$sigma
     gaussian_blur: bool = True
     # gradient magnitude (of gaussian blur $sigma)
