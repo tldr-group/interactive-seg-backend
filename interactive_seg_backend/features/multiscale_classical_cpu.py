@@ -371,9 +371,8 @@ def multiscale_features(
     config: FeatureConfig,
     num_workers: int | None = None,
 ) -> npt.NDArray[np.float16 | np.float32 | np.float64]:
-    # type: ignore
     converted_img: npt.NDArray[np.float32] = np.ascontiguousarray(
-        img_as_float32(raw_img)
+        img_as_float32(raw_img)  # type: ignore
     )
     features: list[npt.NDArray[np.float32]]
     if config.add_zero_scale_features:
@@ -397,12 +396,13 @@ def multiscale_features(
         )
 
     multiscale_features = chain.from_iterable(out_sigmas)
-    features += list(multiscale_features)
+    features += list(multiscale_features)  # type: ignore
 
     if config.difference_of_gaussians:
         intensities: list[npt.NDArray[np.float32]] = []
         for i in range(len(config.sigmas)):
-            intensities.append(out_sigmas[i][0])
+            gaussian_blur_at_sigma: npt.NDArray[np.float32] = out_sigmas[i][0]  # type: ignore
+            intensities.append(gaussian_blur_at_sigma)
         dogs = difference_of_gaussians(intensities)
         features += dogs
 
