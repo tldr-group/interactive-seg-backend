@@ -20,6 +20,7 @@ dependencies = [
   "numpy>=1.24",
   "scikit-image>=0.20",
   "scikit-learn>=1.5.1",
+  "pillow>=10.0.0",
   "tifffile"
 ]
 
