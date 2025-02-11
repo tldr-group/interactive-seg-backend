@@ -10,6 +10,9 @@ GPU_DISALLOWED_FEATURES: list[str] = [
     "structure_tensor_eigvals",
 ]
 # TODO: add json saving / loading
+# TODO: add some example JSONs
+# TODO: add fn that takes state of config and returns list of same length of generated feat stack where
+# each entry in the list is description of that feature stack!
 
 
 @dataclass
@@ -55,6 +58,7 @@ class FeatureConfig:
 
     # apply features to unblurred img
     add_zero_scale_features: bool = True
+
     min_sigma: float = 1.0
     max_sigma: float = 16.0
     sigmas: tuple[float, ...] = (1.0, 2.0, 4.0, 8.0, 16.0)
@@ -128,6 +132,8 @@ class TrainingConfig:
     feature_config: FeatureConfig
 
     classifier: Classifiers = "random_forest"
+    # `classifier_params` are any addtional params passed to classifier init (i.e tree_depth etc)
+    # we need field(default_factory) as dicts are mutable and therefore can't be dataclass default args
     classifier_params: dict[str, Any] = field(default_factory=dict)
     balance_classes: bool = True
 
