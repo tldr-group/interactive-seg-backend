@@ -32,6 +32,7 @@ from multiprocessing import cpu_count
 
 from interactive_seg_backend.configs import FeatureConfig
 
+from time import time
 from typing import Literal
 
 
@@ -436,7 +437,14 @@ def multiscale_features(
 
 
 if __name__ == "__main__":
-    cfg = FeatureConfig(laplacian=True, structure_tensor_eigvals=True)
-    img = (np.random.uniform(0, 1.0, (1000, 1000)) * 255).astype(np.uint8)
+    cfg = FeatureConfig(
+        name="no_cast",
+        membrane_projections=False,
+        cast_to="f32",
+    )
+    img = (np.random.uniform(0, 1.0, (500, 500)) * 255).astype(np.uint8)
+    start = time()
     feats = multiscale_features(img, cfg, num_workers=N_ALLOWED_CPUS)
-    print(feats.shape)
+    end = time()
+    print(cfg)
+    print(f"{feats.shape} in {end - start:.4f}s")
