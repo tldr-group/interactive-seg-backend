@@ -25,6 +25,7 @@ from scipy.ndimage import rotate, convolve  # type: ignore
 from skimage.util.dtype import img_as_float32
 
 from itertools import combinations_with_replacement
+from itertools import chain
 
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
@@ -35,7 +36,7 @@ from typing import Literal
 
 
 # - 2 to allow for main & gui threads
-BACKEND: Literal["loky", "threading"] = "loky"
+BACKEND: Literal["loky", "threading"] = "threading"
 N_ALLOWED_CPUS = cpu_count() - 2
 
 print(f"N CPUS: {N_ALLOWED_CPUS}")
@@ -347,9 +348,92 @@ def singlescale_singlechannel_features(
     return results
 
 
+def zero_scale_filters(
+    img: npt.NDArray[np.float32],
+    sobel_filter: bool = True,
+    hessian_filter: bool = True,
+    add_mod_trace: bool = True,
+) -> list[npt.NDArray[np.float32]]:
+    """Weka *always* adds the original image, and if computing edgees and/or hessian,
+    adds those for sigma=0. This function does that."""
+    out_filtered: list[npt.NDArray[np.float32]] = [img]
+    if sobel_filter:
+        edges = singlescale_edges(img)
+        out_filtered.append(edges)
+    if hessian_filter:
+        hessian = singlescale_hessian(img, add_mod_trace)
+        out_filtered += hessian
+    return out_filtered
+
+
+def multiscale_features(
+    raw_img: npt.NDArray[np.uint8],
+    config: FeatureConfig,
+    num_workers: int | None = None,
+) -> npt.NDArray[np.float16 | np.float32 | np.float64]:
+    # type: ignore
+    converted_img: npt.NDArray[np.float32] = np.ascontiguousarray(
+        img_as_float32(raw_img)
+    )
+    features: list[npt.NDArray[np.float32]]
+    if config.add_zero_scale_features:
+        features = zero_scale_filters(
+            converted_img,
+            config.sobel_filter,
+            config.hessian_filter,
+            config.add_mod_trace_det_hessian,
+        )
+    else:
+        features = []
+
+    with ThreadPoolExecutor(max_workers=num_workers) as ex:
+        out_sigmas = list(
+            ex.map(
+                lambda sigma: singlescale_singlechannel_features(
+                    raw_img, sigma, config
+                ),
+                config.sigmas,
+            )
+        )
+
+    multiscale_features = chain.from_iterable(out_sigmas)
+    features += list(multiscale_features)
+
+    if config.difference_of_gaussians:
+        intensities: list[npt.NDArray[np.float32]] = []
+        for i in range(len(config.sigmas)):
+            intensities.append(out_sigmas[i][0])
+        dogs = difference_of_gaussians(intensities)
+        features += dogs
+
+    if config.membrane_projections:
+        projections = membrane_projections(
+            converted_img,
+            config.membrane_patch_size,
+            config.membrane_thickness,
+            num_workers,
+        )
+        features += projections
+
+    if config.bilateral:
+        byte_img = img.astype(np.uint8)
+        bilateral_filtered = bilateral(byte_img)
+        features += bilateral_filtered
+
+    features_np: npt.NDArray[np.float16 | np.float32 | np.float64] = np.stack(
+        features, axis=-1
+    )
+    if config.cast_to == "f16":
+        features_np = features_np.astype(np.float16)
+    elif config.cast_to == "f64":
+        features_np = features_np.astype(np.float64)
+    else:
+        features_np = features_np.astype(np.float32)
+    return features_np
+
+
 if __name__ == "__main__":
-    cfg = FeatureConfig(laplacian=True, structure_tensor_eigvals=True)
-    img = np.random.uniform(0, 1, (500, 500))
-    feats = singlescale_singlechannel_features(img, 1.0, cfg)
-    res = np.stack(feats)
-    print(res.shape)
+    cfg = FeatureConfig(laplacian=True, structure_tensor_eigvals=True, cast_to="f16")
+    img = (np.random.uniform(0, 1.0, (1000, 1000)) * 255).astype(np.uint8)
+    feats = multiscale_features(img, cfg, num_workers=N_ALLOWED_CPUS)
+    print(feats.shape)
