@@ -18,16 +18,17 @@ Every feature computes a value for *every pixel* in the image.
 import numpy as np
 import numpy.typing as npt
 
-from skimage.draw import disk  # type: ignore
 from skimage import filters
+from skimage.draw import disk
+from skimage.feature import structure_tensor, structure_tensor_eigenvalues
+from scipy.ndimage import rotate, convolve  # type: ignore
+
 
 from itertools import combinations_with_replacement
 # from skimage import filters, feature
 # from skimage.util.dtype import img_as_float32
-# from scipy.ndimage import rotate, convolve
 
-
-# from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
 from typing import Literal
@@ -135,4 +136,85 @@ def singlescale_mean(
     :return: mean filtered img
     :rtype: np.ndarray
     """
-    return filters.rank.mean(byte_img, sigma_rad_footprint)
+    out: npt.NDArray[np.uint8] = filters.rank.mean(byte_img, sigma_rad_footprint)
+    return out
+
+
+def singlescale_median(
+    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
+) -> npt.NDArray[np.uint8]:
+    """Median pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
+
+    :param byte_img: img arr in uint8 format
+    :type byte_img: np.ndarray
+    :param sigma_rad_footprint: radius of footprint
+    :type sigma_rad_footprint: np.ndarray
+    :return: mean filtered img
+    :rtype: np.ndarray
+    """
+    return filters.rank.median(byte_img, sigma_rad_footprint)
+
+
+def singlescale_maximum(
+    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
+) -> npt.NDArray[np.uint8]:
+    """maximum pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
+
+    :param byte_img: img arr in uint8 format
+    :type byte_img: np.ndarray
+    :param sigma_rad_footprint: radius of footprint
+    :type sigma_rad_footprint: np.ndarray
+    :return: maximum filtered img
+    :rtype: np.ndarray
+    """
+    out: npt.NDArray[np.uint8] = filters.rank.maximum(byte_img, sigma_rad_footprint)
+    return out
+
+
+def singlescale_minimum(
+    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
+) -> npt.NDArray[np.uint8]:
+    """maximum pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
+
+    :param byte_img: img arr in uint8 format
+    :type byte_img: np.ndarray
+    :param sigma_rad_footprint: radius of footprint
+    :type sigma_rad_footprint: np.ndarray
+    :return: minimum filtered img
+    :rtype: np.ndarray
+    """
+    out: npt.NDArray[np.uint8] = filters.rank.minimum(byte_img, sigma_rad_footprint)
+    return out
+
+
+def singlescale_structure_tensor(
+    img: npt.NDArray[np.float64], sigma: int
+) -> npt.NDArray[np.float64]:
+    """Compute structure tensor eigenvalues of $img in $sigma radius.
+
+    :param img: img arr
+    :type img: np.ndarray
+    :param sigma: scale parameter
+    :type sigma: int
+    :return: largest two eigenvalues of structure tensor at each pixel
+    :rtype: np.ndarray
+    """
+    tensor: list[npt.NDArray[np.float64]] = structure_tensor(img, sigma)
+    eigvals: npt.NDArray[np.float64] = structure_tensor_eigenvalues(tensor)
+    return eigvals[:2]
+
+
+def singlescale_laplacian(img: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Compute laplacian of $img on scale $simga. Not currently working.
+
+    :param img: img arr
+    :type img: np.ndarray
+    :param sigma: scale parameter
+    :type sigma: int
+    :return: laplacian filtered img arr
+    :rtype: np.ndarray
+    """
+    return filters.laplace(img)
+
+
+# # %% ===================================SCALE-FREE FEATURES===================================
