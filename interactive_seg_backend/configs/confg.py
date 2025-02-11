@@ -13,6 +13,8 @@ GPU_DISALLOWED_FEATURES: list[str] = [
 
 @dataclass
 class FeatureConfig:
+    """Set of (classical) features for the image, & the length scales to apply them over."""
+
     name: str = "default"
     desc: str = "weka-style features"
     # gaussian blur with std=$sigma
@@ -55,8 +57,8 @@ class FeatureConfig:
 
     def _check_if_filters_allowed_with_gpu(self) -> None:
         cls_fields: tuple[Field[Any], ...] = fields(self.__class__)
-        for field in cls_fields:
-            name = field.name
+        for cls_field in cls_fields:
+            name = cls_field.name
             is_disallowed = name in GPU_DISALLOWED_FEATURES
             if is_disallowed:
                 field_val = self.__getattribute__(name)
@@ -115,6 +117,8 @@ Rules = Literal["volume_fraction", "connectivity"]
 
 @dataclass
 class TrainingConfig:
+    """Config for end-to-end training: features, classifier, processing, improvements."""
+
     feature_config: FeatureConfig
 
     classifier: Classifiers = "random_forest"
@@ -144,5 +148,6 @@ class TrainingConfig:
 if __name__ == "__main__":
     c = FeatureConfig(sigmas=(1.0, 1.5, 2.0))
     print(c)
+    print(" ")
     t = TrainingConfig(c, "xgb")
     print(t)
