@@ -218,3 +218,92 @@ def singlescale_laplacian(img: npt.NDArray[np.float64]) -> npt.NDArray[np.float6
 
 
 # # %% ===================================SCALE-FREE FEATURES===================================
+def bilateral(byte_img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+    """For $sigma in [5, 10], for $value_range in [50, 100],
+        compute mean of pixels in $sigma radius inside $value_range window for each pixel.
+
+    :param img: img arr
+    :type img: np.ndarray
+    :return: bilateral filtered arrs stacked in a single np array
+    :rtype: np.ndarray
+    """
+    bilaterals: list[npt.NDArray[np.uint8]] = []
+    for spatial_radius in (5, 10):
+        footprint = make_footprint(spatial_radius)
+        for value_range in (50, 100):  # check your pixels are [0, 255]
+            filtered: npt.NDArray[np.uint8] = filters.rank.mean_bilateral(
+                byte_img, footprint, s0=value_range, s1=value_range
+            )
+            bilaterals.append(filtered)
+    return np.stack(bilaterals, axis=0)
+
+
+def difference_of_gaussians(
+    gaussian_blurs: list[npt.NDArray[np.float64]],
+) -> list[npt.NDArray[np.float64]]:
+    """Compute their difference of each arr in $gaussian_blurs (representing different $sigma scales) with smaller arrs.
+
+    :param gaussian_blurs: list of arrs of img filtered with gaussian blur at different length scales
+    :type gaussian_blurs: List[np.ndarray]
+    :return: list of differences of each blurred img with smaller length scales.
+    :rtype: List[np.ndarray]
+    """
+    # weka computes dog for  each filter of a *lower* sigma
+    dogs: list[npt.NDArray[np.float64]] = []
+    for i in range(len(gaussian_blurs)):
+        sigma_1 = gaussian_blurs[i]
+        for j in range(i):
+            sigma_2 = gaussian_blurs[j]
+            dogs.append(sigma_2 - sigma_1)
+    return dogs
+
+
+def membrane_projections(
+    img: npt.NDArray[np.float64],
+    membrane_patch_size: int = 19,
+    membrane_thickness: int = 1,
+    num_workers: int | None = N_ALLOWED_CPUS,
+) -> list[npt.NDArray[np.float64]]:
+    """Membrane projections.
+
+    Create a $membrane_patch_size^2 array with $membrane_thickness central columns set to 1, other entries set to 0.
+    Next compute 30 different rotations of membrane kernel ($theta in [0, 180, step=6 degrees]).
+    Convolve each of these kernels with $img to get HxWx30 array, then z-project the array by taking
+    the sum, mean, std, median, max and min to get a HxWx6 array out.
+
+    :param img: img arr
+    :type img: np.ndarray
+    :param membrane_patch_size: size of kernel, defaults to 19
+    :type membrane_patch_size: int, optional
+    :param membrane_thickness: width of line down the middle, defaults to 1
+    :type membrane_thickness: int, optional
+    :param num_workers: number of threads, defaults to N_ALLOWED_CPUS
+    :type num_workers: int | None, optional
+    :return: List of 6 z-projections of membrane convolutions
+    :rtype: List[np.ndarray]
+    """
+    kernel = np.zeros((membrane_patch_size, membrane_patch_size))
+    x0 = membrane_patch_size // 2 - membrane_thickness // 2
+    x1 = 1 + membrane_patch_size // 2 + membrane_thickness // 2
+    kernel[:, x0:x1] = 1
+
+    all_kernels = [np.rint(rotate(kernel, angle)) for angle in range(0, 180, 6)]
+    # map these across threads to speed up (order unimportant)
+    with ThreadPoolExecutor(max_workers=num_workers) as ex:
+        out_angles: list[npt.NDArray[np.float64]] = list(
+            ex.map(
+                lambda k: convolve(img, k),
+                all_kernels,
+            )
+        )
+    out_angles_np = np.stack(out_angles, axis=0)
+    sum_proj = np.sum(out_angles_np, axis=0)
+    mean_proj = np.mean(out_angles_np, axis=0)
+    std_proj = np.std(out_angles_np, axis=0)
+    median_proj = np.median(out_angles_np, axis=0)
+    max_proj = np.amax(out_angles_np, axis=0)
+    min_proj = np.amin(out_angles_np, axis=0)
+    return [mean_proj, max_proj, min_proj, sum_proj, std_proj, median_proj]
+
+
+# # %% ===================================MANAGER FUNCTIONS===================================
