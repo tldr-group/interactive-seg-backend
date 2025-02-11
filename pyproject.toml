@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+
+[project]
+name = "interactive_seg_backend"
+version = "0.0.1"
+authors = [
+  { name="Ronan Docherty", email="ronan.docherty18@imperial.ac.uk"}
+]
+description = "Interactive segmentation backend: featurisers, classifiers, I/O etc."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+  "numpy>=1.24",
+  "scikit-image>=0.20",
+  "scikit-learn>=1.5.1",
+  "tifffile"
+]
+
+[project.optional-dependencies]
+gpu = [
+  "torch>=2.5",
+  "torchvision>=0.20.1",
+  "kornia>=0.8.0"
+]
+lint = [
+  "mypy>=1.2.0",
+  "mypy-extensions>=1.0.0",
+  "ruff>=0.9.0"
+]
+test = [
+  "pytest",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/tldr-group/interactive-seg-backend"
+"Bug Tracker" = "https://github.com/tldr-group/interactive-seg-backend/issues"
