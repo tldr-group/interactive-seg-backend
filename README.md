@@ -24,3 +24,8 @@ To get all the optional dependencies at once:
 ```bash
 pip install -e '.[all]'
 ```
+
+## Benchmark
+```bash
+python -m cProfile -s tottime multiscale_classical_cpu.py > bench.txt
+```
