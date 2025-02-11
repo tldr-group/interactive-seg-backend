@@ -1,7 +1,7 @@
 from numpy import log2, logspace
-from dataclasses import dataclass, fields, Field, asdict
+from dataclasses import dataclass, fields, Field, field, asdict
 from json import dumps
-from typing import Any
+from typing import Any, Literal
 
 GPU_DISALLOWED_FEATURES: list[str] = [
     "hessian_filter",
@@ -13,6 +13,8 @@ GPU_DISALLOWED_FEATURES: list[str] = [
 
 @dataclass
 class FeatureConfig:
+    name: str = "default"
+    desc: str = "weka-style features"
     # gaussian blur with std=$sigma
     gaussian_blur: bool = True
     # gradient magnitude (of gaussian blur $sigma)
@@ -93,14 +95,54 @@ class FeatureConfig:
 
     def __repr__(self) -> str:
         to_stringify = asdict(self)
-        out_str = "FEATURE CONFIG: \n" + dumps(
+        out_str = f"FEATURE CONFIG: \n`{self.name}`: {self.desc}\n" + dumps(
+            to_stringify, ensure_ascii=True, indent=2
+        )
+        to_stringify.pop("name")
+        to_stringify.pop("desc")
+        return out_str
+
+
+Classifiers = Literal[
+    "linear_regression", "logistic_regression", "random_forest", "xgb"
+]
+Preprocessing = Literal["denoise", "equalize", "blur"]
+Postprocessing = Literal["modal_filter"]
+LabellingStrategy = Literal["sparse", "dense", "interfaces"]
+HITLStrategy = Literal["wrong", "uncertainty", "representative_weighted"]
+Rules = Literal["volume_fraction", "connectivity"]
+
+
+@dataclass
+class TrainingConfig:
+    feature_config: FeatureConfig
+
+    classifier: Classifiers = "random_forest"
+    classifier_params: dict[str, Any] = field(default_factory=dict)
+    balance_classes: bool = True
+
+    preprocessing: tuple[Preprocessing] | None = None
+    postprocessing: tuple[Postprocessing] | None = None
+
+    autocontext: bool = False
+    CRF: bool = False
+    HITL: bool = False
+    HITL_strategy: HITLStrategy = "wrong"
+    rules: tuple[Rules] | None = None
+
+    def __repr__(self) -> str:
+        name = self.feature_config.name
+        desc = self.feature_config.desc
+        to_stringify = asdict(self)
+        to_stringify["feature_config"] = f"`{name}`: {desc}"
+        out_str = "TRAINING CONFIG: \n" + dumps(
             to_stringify, ensure_ascii=True, indent=2
         )
         return out_str
 
 
-# @dataclass
-# class TrainConfig:
 if __name__ == "__main__":
     c = FeatureConfig(sigmas=(1.0, 1.5, 2.0))
     print(c)
+    t = TrainingConfig(c, "xgb")
+    print(t)
