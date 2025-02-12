@@ -88,6 +88,7 @@ def singescale_hessian(
     :return: either
     :rtype: torch.Tensor
     """
+    # TODO: generalise to n_channels
     second_deriv = convolve(dx_dy, sobel_kernel)
     a: torch.Tensor
     b: torch.Tensor
@@ -98,8 +99,7 @@ def singescale_hessian(
     mod = torch.sqrt(a**2 + b**2 + d**2)
     trace = a + d
     det = a * d - b**2
-    # orientation_2 = orientation_1 + np.pi / 2
-    # eigvals = feature.hessian_matrix_eigvals(H_elems)
+
     eig1 = trace + torch.sqrt((4 * b**2 + (a - d) ** 2))
     eig2 = trace - torch.sqrt((4 * b**2 + (a - d) ** 2))
 
@@ -112,20 +112,43 @@ def singescale_hessian(
     return out.unsqueeze(0)
 
 
-if __name__ == "__main__":
-    n_ch = 1
-    sigmas = (1.0, 2.0, 4.0, 8.0, 16.0)
-    gauss = get_multiscale_gaussian_kernel("cuda:0", torch.float32, sigmas, n_ch)
-    sobel_kernel = get_sobel_kernel("cuda:0", torch.float32, n_ch)
-    sobel_squared = get_sobel_kernel("cuda:0", torch.float32, 2 * n_ch)
-    print(gauss.shape)
-    print(sobel_kernel.shape)
+def singlescale_mean(img: torch.Tensor, sigma: int) -> torch.Tensor:
+    k = 2 * sigma + 1
+    out = avg_pool2d(img, k, 1, (k // 2), ceil_mode=True)
+    return out  # [:, :, :H, :W]
 
+
+def singlescale_max(img: torch.Tensor, sigma: int) -> torch.Tensor:
+    k = 2 * sigma + 1
+    out = max_pool2d(img, k, 1, (k // 2), ceil_mode=True)
+    return out  # [:, :, :H, :W]
+
+
+def singlescale_min(img: torch.Tensor, sigma: int) -> torch.Tensor:
+    k = 2 * sigma + 1
+    out = -max_pool2d(-img, k, 1, (k // 2), ceil_mode=True)
+    return out  # [:, :, :H, :W]
+
+
+def singlescale_median(img: torch.Tensor, sigma: int) -> torch.Tensor:
+    k = 2 * sigma + 1
+    return median_blur(img, k)
+
+
+if __name__ == "__main__":
+    n_ch = 3
     img = torch.rand((1, n_ch, 1000, 1000), device="cuda:0", dtype=torch.float32)
+
+    # n_ch = 3
+    # sigmas = (1.0, 2.0, 4.0, 8.0, 16.0)
+    # gauss = get_multiscale_gaussian_kernel("cuda:0", torch.float32, sigmas, n_ch)
+    # sobel_kernel = get_sobel_kernel("cuda:0", torch.float32, n_ch)
+    # sobel_squared = get_sobel_kernel("cuda:0", torch.float32, 2 * n_ch)
+    # print(gauss.shape)
+    # print(sobel_kernel.shape)
+
+    # img = torch.rand((1, n_ch, 1000, 1000), device="cuda:0", dtype=torch.float32)
     start = time()
-    # feats = convolve(img, gauss)
-    feats = convolve(img, sobel_kernel)
-    hess = singescale_hessian(feats, sobel_squared)
-    print(hess.shape)
+    feats = singlescale_mean(img, 4)
     end = time()
     print(f"{feats.shape} in {end - start:.4f}s")
