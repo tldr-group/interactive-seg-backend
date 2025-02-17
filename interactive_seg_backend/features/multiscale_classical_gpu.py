@@ -133,6 +133,11 @@ def singlescale_median(img: torch.Tensor, sigma: int) -> torch.Tensor:
     return median_blur(img, k)
 
 
+def singlescale_laplacian(img: torch.Tensor, sigma: int) -> torch.Tensor:
+    k = 2 * sigma + 1
+    return laplacian(img, (k, k))
+
+
 def bilateral(img: torch.Tensor) -> torch.Tensor:
     bilaterals: list[torch.Tensor] = []
     for spatial_radius in (3, 5):
@@ -145,7 +150,20 @@ def bilateral(img: torch.Tensor) -> torch.Tensor:
                 sigma_space=(spatial_radius, spatial_radius),
             )
             bilaterals.append(filtered)
-    return torch.cat(bilaterals, dim=0)
+    return torch.cat(bilaterals, dim=1)
+
+
+def difference_of_gaussians(gaussian_blurs: torch.Tensor) -> torch.Tensor:
+    diff_list: list[torch.Tensor] = []
+    N_blurs = gaussian_blurs.shape[1]
+    print(gaussian_blurs.shape)
+    for i in range(N_blurs):
+        sigma_1 = gaussian_blurs[0:1, i : i + 1]
+        for j in range(i):
+            sigma_2 = gaussian_blurs[0:1, j : j + 1]
+            diff_list.append(sigma_2 - sigma_1)
+    dogs = torch.cat(diff_list, dim=1)
+    return dogs
 
 
 torch.cuda.empty_cache()
@@ -153,20 +171,18 @@ if __name__ == "__main__":
     n_ch = 1
     img = torch.rand((1, n_ch, 200, 200), device="cuda:0", dtype=torch.float32)
 
-    # n_ch = 3
-    # sigmas = (1.0, 2.0, 4.0, 8.0, 16.0)
-    # gauss = get_multiscale_gaussian_kernel("cuda:0", torch.float32, sigmas, n_ch)
+    sigmas = (1.0, 2.0, 4.0, 8.0, 16.0)
+    gauss = get_multiscale_gaussian_kernel("cuda:0", torch.float32, sigmas, n_ch)
     sobel_kernel = get_sobel_kernel("cuda:0", torch.float32, n_ch)
     sobel_squared = get_sobel_kernel("cuda:0", torch.float32, 2 * n_ch)
-    # print(gauss.shape)
-    # print(sobel_kernel.shape)
 
-    # img = torch.rand((1, n_ch, 1000, 1000), device="cuda:0", dtype=torch.float32)
     start = time()
     torch.cuda.synchronize()
-    edges = convolve(img, sobel_kernel)
-    print(edges.shape)
-    feats = singescale_hessian(edges, sobel_squared)
+    # edges = convolve(img, sobel_kernel)
+    blurs = convolve(img, gauss)
+    feats = difference_of_gaussians(blurs)
+    # feats = singescale_hessian(edges, sobel_squared)
+    # feats = bilateral(img)
     torch.cuda.synchronize()
     end = time()
     print(f"{feats.shape} in {end - start:.4f}s")
