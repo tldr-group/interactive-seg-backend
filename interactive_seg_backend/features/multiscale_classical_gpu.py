@@ -13,6 +13,8 @@ for each sigma:
 # membrane projections manually
 """
 
+import numpy as np
+from scipy.ndimage import rotate  # type: ignore
 import torch
 from torch.nn.functional import conv2d, max_pool2d, avg_pool2d
 from kornia.filters import (
@@ -28,6 +30,7 @@ from time import time
 from interactive_seg_backend.configs import FeatureConfig
 
 
+# %% ===================================SINGLESCALE FEATURES===================================
 def singlescale_gaussian(
     img: torch.Tensor, sigma: int, mult: float = 1.0
 ) -> torch.Tensor:
@@ -138,6 +141,7 @@ def singlescale_laplacian(img: torch.Tensor, sigma: int) -> torch.Tensor:
     return laplacian(img, (k, k))
 
 
+# %% ===================================SCALE-FREE FEATURES===================================
 def bilateral(img: torch.Tensor) -> torch.Tensor:
     bilaterals: list[torch.Tensor] = []
     for spatial_radius in (3, 5):
@@ -156,7 +160,6 @@ def bilateral(img: torch.Tensor) -> torch.Tensor:
 def difference_of_gaussians(gaussian_blurs: torch.Tensor) -> torch.Tensor:
     diff_list: list[torch.Tensor] = []
     N_blurs = gaussian_blurs.shape[1]
-    print(gaussian_blurs.shape)
     for i in range(N_blurs):
         sigma_1 = gaussian_blurs[0:1, i : i + 1]
         for j in range(i):
@@ -166,21 +169,65 @@ def difference_of_gaussians(gaussian_blurs: torch.Tensor) -> torch.Tensor:
     return dogs
 
 
+def get_membrane_proj_kernel(
+    device: torch.device,
+    dtype: torch.dtype,
+    n_channels: int,
+    membrane_patch_size: int = 17,
+    membrane_thickness: int = 1,
+    angle_increment_deg: int = 6,
+) -> torch.Tensor:
+    kernel = np.zeros((membrane_patch_size, membrane_patch_size))
+    x0 = membrane_patch_size // 2 - membrane_thickness // 2
+    x1 = 1 + membrane_patch_size // 2 + membrane_thickness // 2
+    kernel[:, x0:x1] = 1
+
+    all_kernels = [
+        np.rint(rotate(kernel, angle, reshape=False))
+        for angle in range(0, 180, angle_increment_deg)
+    ]
+    kernel_np = np.stack(all_kernels)
+    kernel_torch = torch.tensor(kernel_np, device=device, dtype=dtype)
+    filters = kernel_torch.unsqueeze(1)
+    filters = torch.tile(filters, (n_channels, 1, 1, 1))
+
+    return filters
+
+
+def membrane_projections(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+    projs = convolve(img, kernel)
+    sum_proj = torch.sum(projs, dim=1)
+    mean_proj = torch.mean(projs, dim=1)
+    std_proj = torch.std(projs, dim=1)
+    median_proj, _ = torch.median(projs, dim=1)
+    max_proj = torch.amax(projs, dim=1)
+    min_proj = torch.amin(projs, dim=1)
+
+    return torch.stack(
+        (mean_proj, max_proj, min_proj, sum_proj, std_proj, median_proj), dim=1
+    )
+
+
 torch.cuda.empty_cache()
+device = torch.device("cuda:0")
 if __name__ == "__main__":
     n_ch = 1
-    img = torch.rand((1, n_ch, 200, 200), device="cuda:0", dtype=torch.float32)
+    img = torch.rand((1, n_ch, 200, 200), device=device, dtype=torch.float32)
 
     sigmas = (1.0, 2.0, 4.0, 8.0, 16.0)
-    gauss = get_multiscale_gaussian_kernel("cuda:0", torch.float32, sigmas, n_ch)
-    sobel_kernel = get_sobel_kernel("cuda:0", torch.float32, n_ch)
-    sobel_squared = get_sobel_kernel("cuda:0", torch.float32, 2 * n_ch)
+    gauss = get_multiscale_gaussian_kernel(device, torch.float32, sigmas, n_ch)
+    sobel_kernel = get_sobel_kernel(device, torch.float32, n_ch)
+    sobel_squared = get_sobel_kernel(device, torch.float32, 2 * n_ch)
+
+    membrane_kernel = get_membrane_proj_kernel(device, torch.float32, n_ch)
+    # print(membrane.shape)
 
     start = time()
     torch.cuda.synchronize()
     # edges = convolve(img, sobel_kernel)
     blurs = convolve(img, gauss)
-    feats = difference_of_gaussians(blurs)
+    # feats = difference_of_gaussians(blurs)
+    feats = membrane_projections(img, membrane_kernel)
     # feats = singescale_hessian(edges, sobel_squared)
     # feats = bilateral(img)
     torch.cuda.synchronize()
