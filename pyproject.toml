@@ -21,7 +21,7 @@ dependencies = [
   "scikit-image>=0.20",
   "scikit-learn>=1.5.1",
   "pillow>=10.0.0",
-  "tifffile"
+  "tifffile",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +36,7 @@ lint = [
   "ruff>=0.9.0"
 ]
 test = [
-  "pytest",
+  "pytest>=8.3.0",
 ]
 
 [project.urls]

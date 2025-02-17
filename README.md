@@ -29,3 +29,10 @@ pip install -e '.[all]'
 ```bash
 python -m cProfile -s tottime multiscale_classical_cpu.py > bench.txt
 ```
+
+## Tests
+
+Requires the pytest package (`pip install -e '.[test]'`)
+```bash
+pytest
+```

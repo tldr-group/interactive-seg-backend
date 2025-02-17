@@ -172,3 +172,4 @@ cython_debug/
 
 .vscode
 *bench.txt
+feature-stack.tif
