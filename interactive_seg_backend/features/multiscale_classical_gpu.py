@@ -83,10 +83,18 @@ def get_sobel_kernel(
     return filters
 
 
-def convolve(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+def convolve(
+    img: torch.Tensor, kernel: torch.Tensor, norm: bool = True
+) -> torch.Tensor:
     _, in_ch, _, _ = img.shape
     _, _, kh, kw = kernel.shape
-    return conv2d(img, kernel, padding=(kh // 2, kw // 2), stride=1, groups=in_ch)
+
+    if norm:
+        summand = torch.sum(torch.abs(kernel), dim=(2, 3), keepdim=True)
+        kernel = kernel / summand
+
+    convolved = conv2d(img, kernel, padding=(kh // 2, kw // 2), stride=1, groups=in_ch)
+    return convolved
 
 
 def get_gradient_mag(edges: torch.Tensor) -> torch.Tensor:
@@ -340,9 +348,9 @@ if __name__ == "__main__":
         maximum=True,
         use_gpu=True,
     )
-    n_ch = 1
+    n_ch = 3
     img = torch.rand(
-        (1, n_ch, 1000, 1000), device=device, dtype=torch.float32, requires_grad=False
+        (1, n_ch, 400, 400), device=device, dtype=torch.float32, requires_grad=False
     )
 
     start = time()
