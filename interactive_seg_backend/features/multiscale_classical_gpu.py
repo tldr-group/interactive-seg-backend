@@ -19,7 +19,7 @@ from kornia.filters import (
     gaussian_blur2d,
     median_blur,
     laplacian,
-    bilateral,
+    bilateral_blur,
     get_gaussian_kernel2d,
 )
 
@@ -88,13 +88,11 @@ def singescale_hessian(
     :return: either
     :rtype: torch.Tensor
     """
-    # TODO: generalise to n_channels
     second_deriv = convolve(dx_dy, sobel_kernel)
-    a: torch.Tensor
-    b: torch.Tensor
-    d: torch.Tensor
 
-    a, d, _, b = second_deriv[0]
+    a: torch.Tensor = second_deriv[0:1, 0::4]
+    b: torch.Tensor = second_deriv[0:1, 1::4]
+    d: torch.Tensor = second_deriv[0:1, 3::4]
 
     mod = torch.sqrt(a**2 + b**2 + d**2)
     trace = a + d
@@ -108,8 +106,8 @@ def singescale_hessian(
         to_stack = (eig1 / 2.0, eig2 / 2.0, mod, trace, det)
     else:
         to_stack = (eig1 / 2.0, eig2 / 2.0)
-    out = torch.stack(to_stack)
-    return out.unsqueeze(0)
+    out = torch.cat(to_stack, dim=1)
+    return out
 
 
 def singlescale_mean(img: torch.Tensor, sigma: int) -> torch.Tensor:
@@ -135,20 +133,40 @@ def singlescale_median(img: torch.Tensor, sigma: int) -> torch.Tensor:
     return median_blur(img, k)
 
 
+def bilateral(img: torch.Tensor) -> torch.Tensor:
+    bilaterals: list[torch.Tensor] = []
+    for spatial_radius in (3, 5):
+        for value_range in (50, 100):  # check your pixels are [0, 255]
+            k = 2 * spatial_radius + 1
+            filtered: torch.Tensor = bilateral_blur(
+                img,
+                k,
+                sigma_color=value_range / 255.0,
+                sigma_space=(spatial_radius, spatial_radius),
+            )
+            bilaterals.append(filtered)
+    return torch.cat(bilaterals, dim=0)
+
+
+torch.cuda.empty_cache()
 if __name__ == "__main__":
-    n_ch = 3
-    img = torch.rand((1, n_ch, 1000, 1000), device="cuda:0", dtype=torch.float32)
+    n_ch = 1
+    img = torch.rand((1, n_ch, 200, 200), device="cuda:0", dtype=torch.float32)
 
     # n_ch = 3
     # sigmas = (1.0, 2.0, 4.0, 8.0, 16.0)
     # gauss = get_multiscale_gaussian_kernel("cuda:0", torch.float32, sigmas, n_ch)
-    # sobel_kernel = get_sobel_kernel("cuda:0", torch.float32, n_ch)
-    # sobel_squared = get_sobel_kernel("cuda:0", torch.float32, 2 * n_ch)
+    sobel_kernel = get_sobel_kernel("cuda:0", torch.float32, n_ch)
+    sobel_squared = get_sobel_kernel("cuda:0", torch.float32, 2 * n_ch)
     # print(gauss.shape)
     # print(sobel_kernel.shape)
 
     # img = torch.rand((1, n_ch, 1000, 1000), device="cuda:0", dtype=torch.float32)
     start = time()
-    feats = singlescale_mean(img, 4)
+    torch.cuda.synchronize()
+    edges = convolve(img, sobel_kernel)
+    print(edges.shape)
+    feats = singescale_hessian(edges, sobel_squared)
+    torch.cuda.synchronize()
     end = time()
     print(f"{feats.shape} in {end - start:.4f}s")
