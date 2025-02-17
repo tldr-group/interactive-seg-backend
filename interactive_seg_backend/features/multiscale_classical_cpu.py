@@ -379,7 +379,6 @@ def multiscale_features(
     converted_img: npt.NDArray[np.float32] = np.ascontiguousarray(
         img_as_float32(raw_img)  # type: ignore
     )
-    print(np.amin(converted_img), np.amax(converted_img))
     features: list[npt.NDArray[np.float32]]
     if config.add_zero_scale_features:
         features = zero_scale_filters(

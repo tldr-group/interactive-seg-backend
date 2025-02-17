@@ -89,6 +89,12 @@ def convolve(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
     return conv2d(img, kernel, padding=(kh // 2, kw // 2), stride=1, groups=in_ch)
 
 
+def get_gradient_mag(edges: torch.Tensor) -> torch.Tensor:
+    g_x = edges[0:1, 0::2]
+    g_y = edges[0:1, 1::2]
+    return torch.sqrt(g_x * g_x + g_y * g_y)
+
+
 def singescale_hessian(
     dx_dy: torch.Tensor, sobel_kernel: torch.Tensor, return_full: bool = True
 ) -> torch.Tensor:
@@ -235,7 +241,7 @@ def zero_scale_filters(
     out_filtered: list[torch.Tensor] = [img]
     edges = convolve(img, sobel_kernel)
     if sobel_filter:
-        out_filtered.append(edges)
+        out_filtered.append(get_gradient_mag(edges))
     if hessian_filter:
         hessian = singescale_hessian(edges, sobel_squared_kernel, add_mod_trace)
         out_filtered.append(hessian)
@@ -282,7 +288,7 @@ def multiscale_features_gpu(
         if config.gaussian_blur:
             features.append(blurred)
         if config.sobel_filter:
-            features.append(edges)
+            features.append(get_gradient_mag(edges))
         if config.hessian_filter:
             hess = singescale_hessian(
                 edges, sobel_squared, config.add_mod_trace_det_hessian
