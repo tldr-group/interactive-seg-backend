@@ -113,19 +113,19 @@ def singescale_hessian(
 def singlescale_mean(img: torch.Tensor, sigma: int) -> torch.Tensor:
     k = 2 * sigma + 1
     out = avg_pool2d(img, k, 1, (k // 2), ceil_mode=True)
-    return out  # [:, :, :H, :W]
+    return out
 
 
 def singlescale_max(img: torch.Tensor, sigma: int) -> torch.Tensor:
     k = 2 * sigma + 1
     out = max_pool2d(img, k, 1, (k // 2), ceil_mode=True)
-    return out  # [:, :, :H, :W]
+    return out
 
 
 def singlescale_min(img: torch.Tensor, sigma: int) -> torch.Tensor:
     k = 2 * sigma + 1
     out = -max_pool2d(-img, k, 1, (k // 2), ceil_mode=True)
-    return out  # [:, :, :H, :W]
+    return out
 
 
 def singlescale_median(img: torch.Tensor, sigma: int) -> torch.Tensor:
