@@ -21,9 +21,6 @@ _FEAT_LIST: list[PossibleFeatures] = get_args(PossibleFeatures)  # type: ignore
 FEATURES: set[PossibleFeatures] = {*_FEAT_LIST}
 SCALEFREE_FEATS: list[PossibleFeatures] = _FEAT_LIST[-3:]
 GPU_DISALLOWED_FEATURES: set[PossibleFeatures] = {
-    "hessian_filter",
-    "minimum",
-    "maximum",
     "structure_tensor_eigvals",
 }
 strs_per_singlescale_feat: dict[PossibleFeatures, tuple[str, ...]] = {
@@ -45,8 +42,6 @@ strs_per_singlescale_feat: dict[PossibleFeatures, tuple[str, ...]] = {
 }
 # TODO: add json saving / loading
 # TODO: add some example JSONs
-# TODO: add fn that takes state of config and returns list of same length of generated feat stack where
-# each entry in the list is description of that feature stack!
 
 
 @dataclass
