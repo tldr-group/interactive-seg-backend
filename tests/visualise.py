@@ -1,0 +1,77 @@
+import numpy as np
+import numpy.typing as npt
+import torch
+
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
+import matplotlib.pyplot as plt
+from tifffile import imread
+
+from interactive_seg_backend.configs import FeatureConfig
+from interactive_seg_backend.features import (
+    multiscale_features,
+    multiscale_features_gpu,
+)
+
+from typing import Any
+
+
+def plot_single_axis(
+    fig, ax, data: np.ndarray, title: str, ylabel: str | None = None
+) -> None:
+    fontsize = 20
+    mappable = ax.imshow(data, cmap="plasma")
+    ax.set_title(title, fontsize=fontsize)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontsize=fontsize)
+    fig.colorbar(mappable, ax=ax)
+
+
+def setup_figure(n_cols: int, n_rows: int = 2) -> tuple[Figure, npt.NDArray[Any]]:
+    axs: npt.NDArray[Any]
+    fig, axs = plt.subplots(ncols=n_cols, nrows=n_rows)
+    fig.set_size_inches((4.75 * n_cols), (4.5 * n_rows))
+    return fig, axs
+
+
+if __name__ == "__main__":
+    DATA = imread("tests/data/0.tif")
+
+    cfg = FeatureConfig(
+        sigmas=(1.0, 2.0, 4.0),
+        mean=True,
+        maximum=True,
+        minimum=True,
+        median=True,
+        bilateral=True,
+        laplacian=True,
+        add_weka_sigma_multiplier=False,
+    )
+    feats_cpu = multiscale_features(DATA, cfg)
+
+    img_tensor = (
+        torch.tensor(DATA, device="cuda:0", dtype=torch.float32)
+        .unsqueeze(0)
+        .unsqueeze(0)
+    )
+    feats_gpu = multiscale_features_gpu(img_tensor, cfg, torch.float32)
+    feats_gpu_np: np.ndarray = feats_gpu.cpu().numpy()
+
+    feat_names = cfg.get_filter_strings()
+
+    fig, axs = setup_figure(len(feat_names[:10]))
+
+    for i, name in enumerate(feat_names[:10]):
+        arrs = (feats_cpu[:, :, i], feats_gpu_np[:, :, i])
+        for j, arr in enumerate(arrs):
+            if i == 0 and j == 0:
+                label = "CPU"
+            elif i == 0 and j == 1:
+                label = "GPU"
+            else:
+                label = None
+            plot_single_axis(fig, axs[j, i], arr, name, label)
+    plt.tight_layout()
+    plt.savefig("tests/out/vis.png")
