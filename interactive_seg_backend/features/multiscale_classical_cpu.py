@@ -220,7 +220,7 @@ def singlescale_laplacian(img: npt.NDArray[np.float32]) -> npt.NDArray[np.float3
 
 
 # # %% ===================================SCALE-FREE FEATURES===================================
-def bilateral(byte_img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
+def bilateral(byte_img: npt.NDArray[np.uint8]) -> list[npt.NDArray[np.uint8]]:
     """For $sigma in [5, 10], for $value_range in [50, 100],
         compute mean of pixels in $sigma radius inside $value_range window for each pixel.
 
@@ -237,7 +237,7 @@ def bilateral(byte_img: npt.NDArray[np.uint8]) -> npt.NDArray[np.uint8]:
                 byte_img, footprint, s0=value_range, s1=value_range
             )
             bilaterals.append(filtered)
-    return np.stack(bilaterals, axis=0)
+    return bilaterals
 
 
 def difference_of_gaussians(
@@ -379,6 +379,7 @@ def multiscale_features(
     converted_img: npt.NDArray[np.float32] = np.ascontiguousarray(
         img_as_float32(raw_img)  # type: ignore
     )
+    print(np.amin(converted_img), np.amax(converted_img))
     features: list[npt.NDArray[np.float32]]
     if config.add_zero_scale_features:
         features = zero_scale_filters(
@@ -440,6 +441,7 @@ if __name__ == "__main__":
     cfg = FeatureConfig(
         name="no_cast",
         membrane_projections=False,
+        bilateral=True,
         cast_to="f32",
     )
     img = (np.random.uniform(0, 1.0, (500, 500)) * 255).astype(np.uint8)
