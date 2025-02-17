@@ -244,22 +244,28 @@ def zero_scale_filters(
 
 @torch.no_grad()
 def multiscale_features_gpu(
-    raw_img: torch.Tensor, config: FeatureConfig, dtype: torch.dtype
+    raw_img: torch.Tensor,
+    config: FeatureConfig,
+    dtype: torch.dtype,
+    reshape_squeeze: bool = True,
 ) -> torch.Tensor:
     _, C, _, _ = raw_img.shape
+    amax = torch.amax(raw_img)
+    converted_img = (raw_img * (1 / amax)).to(dtype)
+
     device = raw_img.device
     gauss_kernel = get_multiscale_gaussian_kernel(device, dtype, config.sigmas, C)
     sobel_kernel = get_sobel_kernel(device, dtype, C)
     sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
 
-    membrane_kernel = get_membrane_proj_kernel(device, torch.float32, n_ch)
+    membrane_kernel = get_membrane_proj_kernel(device, torch.float32, C)
 
-    gaussian_blurs = convolve(raw_img, gauss_kernel)
+    gaussian_blurs = convolve(converted_img, gauss_kernel)
 
     features: list[torch.Tensor]
     if config.add_zero_scale_features:
         features = zero_scale_filters(
-            raw_img,
+            converted_img,
             sobel_kernel,
             sobel_squared,
             config.sobel_filter,
@@ -298,7 +304,7 @@ def multiscale_features_gpu(
     if config.difference_of_gaussians:
         features.append(difference_of_gaussians(gaussian_blurs))
     if config.membrane_projections:
-        projections = membrane_projections(raw_img, membrane_kernel)
+        projections = membrane_projections(converted_img, membrane_kernel)
         features.append(projections)
     if config.bilateral:
         features.append(bilateral(raw_img))
@@ -310,6 +316,10 @@ def multiscale_features_gpu(
         features_out = features_out.to(torch.float32)
     else:
         features_out = features_out.to(torch.float64)
+
+    if reshape_squeeze:
+        features_out = torch.squeeze(features_out, 0)
+        features_out = torch.permute(features_out, (1, 2, 0))
     return features_out
 
 
