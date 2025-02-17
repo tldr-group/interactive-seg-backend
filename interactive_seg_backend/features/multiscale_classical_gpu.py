@@ -319,6 +319,10 @@ if __name__ == "__main__":
     cfg = FeatureConfig(
         name="default",
         cast_to="f16",
+        mean=True,
+        minimum=True,
+        maximum=True,
+        use_gpu=True,
     )
     n_ch = 1
     img = torch.rand(
