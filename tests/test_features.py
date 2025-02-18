@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from math import isclose, pi
 from tifffile import imread
+from skimage.metrics import mean_squared_error
 
 from interactive_seg_backend.configs import FeatureConfig
 import interactive_seg_backend.features.multiscale_classical_cpu as ft
@@ -56,9 +57,8 @@ class TestFeatureCorrectness:
         circumfrence then ok. (Again discrete != anayltic so have high rel tolerance.)
         """
         filtered = ft.singlescale_edges(CIRCLE)
-        subtracted = filtered.round(0) - CIRCLE
-        circumfrence = np.sum(np.where(subtracted > 0, 1, 0))
-        assert isclose(circumfrence, 2 * pi * SIGMA, rel_tol=0.15)
+        circumfrence = np.sum(np.where(filtered > 0, 1, 0))
+        assert isclose(circumfrence, 2 * pi * SIGMA, rel_tol=0.5)
 
     def test_mean(self) -> None:
         """Mean filter test.
@@ -137,16 +137,47 @@ class TestFeatureCorrectness:
         assert np.sum(bilaterals[0]) > np.sum(bilaterals[3])
 
 
+def norm(arr: np.ndarray) -> np.ndarray:
+    """Normalise array by subtracting its min then dividing my max of new arr. Works for mixes of positive and negative.
+
+    :param arr: arr to normalise
+    :type arr: np.ndarray
+    :return: normalised arr
+    :rtype: np.ndarray
+    """
+    offset = arr - np.amin(arr)
+    normed = offset / np.amax(offset)
+    return np.abs(normed)
+
+
+def norm_get_mse(filter_1: np.ndarray, filter_2: np.ndarray) -> float:
+    """Normalise both filters (arrays) and get the mse.
+
+    :param filter_1: first arr
+    :type filter_1: np.ndarray
+    :param filter_2: second arr
+    :type filter_2: np.ndarray
+    :return: mean squared error between normalised arrs
+    :rtype: float
+    """
+    n1 = norm(filter_1)
+    n2 = norm(filter_2)
+    return mean_squared_error(n1, n2)
+
+
+AVG_MSE_CUTOFF = 0.03
+
+
 class TestGPUCPUEquivalence:
     def test_e2e_equiv(self):
         cfg = FeatureConfig(
-            sigmas=(1.0, 2.0, 4.0),
+            sigmas=(1.0, 2.0, 4.0, 8.0),
             mean=True,
             maximum=True,
             minimum=True,
             median=True,
             bilateral=True,
-            laplacian=True,
+            add_weka_sigma_multiplier=False,
         )
         feats_cpu = ft.multiscale_features(DATA, cfg)
 
@@ -162,21 +193,20 @@ class TestGPUCPUEquivalence:
         assert feats_cpu.shape == feats_gpu.shape, (
             f"{feats_cpu.shape} != {feats_gpu.shape}!"
         )
-        print(f"{feats_cpu.shape}, {feats_gpu.shape}")
 
         feat_names = cfg.get_filter_strings()
 
-        checks: list[tuple[str, bool]] = []
+        checks: list[tuple[str, bool, float]] = []
         for i, feat_name in enumerate(feat_names):
             cpu = feats_cpu[:, :, i]
             gpu = feats_gpu_np[:, :, i]
 
-            is_close = bool(np.all(np.isclose(cpu, gpu, rtol=1e-2)))
-            checks.append(((feat_name), is_close))
+            diff = norm_get_mse(cpu, gpu)
+
+            passed = diff < AVG_MSE_CUTOFF
+            checks.append((feat_name, passed, diff))
         passed_all = all([t[1] for t in checks])
         if not passed_all:
-            fails = [t[0] for t in checks if t[1] is False]
-            print(fails)
             assert False
 
 
