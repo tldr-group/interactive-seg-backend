@@ -16,7 +16,7 @@ for each sigma:
 import numpy as np
 from scipy.ndimage import rotate  # type: ignore
 import torch
-from torch.nn.functional import conv2d, max_pool2d, avg_pool2d
+from torch.nn.functional import conv2d, max_pool2d, avg_pool2d, pad
 from kornia.filters import (
     gaussian_blur2d,
     median_blur,
@@ -49,7 +49,7 @@ def get_multiscale_gaussian_kernel(
     # get kernel of shape (N_s, max_k, max_k) where max_k is largest (truncated) gaussian kernel
     N = len(sigmas)
     max_s = max(sigmas)
-    max_k = 4 * int(max_s * mult) + 1
+    max_k = 2 * int(max_s * mult) + 1
     filters = torch.zeros(
         (N, 1, max_k, max_k), dtype=dtype, device=device, requires_grad=False
     )
@@ -84,7 +84,7 @@ def get_sobel_kernel(
 
 
 def convolve(
-    img: torch.Tensor, kernel: torch.Tensor, norm: bool = True
+    img: torch.Tensor, kernel: torch.Tensor, norm: bool = False
 ) -> torch.Tensor:
     _, in_ch, _, _ = img.shape
     _, _, kh, kw = kernel.shape
@@ -93,7 +93,8 @@ def convolve(
         summand = torch.sum(torch.abs(kernel), dim=(2, 3), keepdim=True)
         kernel = kernel / summand
 
-    convolved = conv2d(img, kernel, padding=(kh // 2, kw // 2), stride=1, groups=in_ch)
+    padded = pad(img, (kw // 2, kw // 2, kh // 2, kh // 2), mode="reflect")
+    convolved = conv2d(padded, kernel, stride=1, groups=in_ch)
     return convolved
 
 
@@ -117,7 +118,7 @@ def singescale_hessian(
     :return: either
     :rtype: torch.Tensor
     """
-    second_deriv = convolve(dx_dy, sobel_kernel)
+    second_deriv = convolve(dx_dy, sobel_kernel, True)
 
     a: torch.Tensor = second_deriv[0:1, 0::4]
     b: torch.Tensor = second_deriv[0:1, 1::4]
@@ -293,7 +294,7 @@ def multiscale_features_gpu(
     for i, sigma in enumerate(config.sigmas):
         s = int(sigma)
         blurred = gaussian_blurs[0:1, i : i + 1]
-        edges = convolve(blurred, sobel_kernel)
+        edges = convolve(blurred, sobel_kernel, True)
         if config.gaussian_blur:
             features.append(blurred)
         if config.sobel_filter:
