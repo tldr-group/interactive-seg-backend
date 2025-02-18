@@ -76,8 +76,9 @@ def singlescale_gaussian(
     :return: filtered array
     :rtype: np.ndarray
     """
+    adj_sigma = mult * sigma
     out: npt.NDArray[np.float32] = filters.gaussian(
-        img, sigma=int(mult * sigma), preserve_range=True, truncate=1.0
+        img, sigma=int(adj_sigma), preserve_range=True, truncate=1.0
     )
     return out
 
