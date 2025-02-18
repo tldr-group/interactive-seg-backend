@@ -1,18 +1,3 @@
-"""
-for each sigma:
-    1) precompute
-
-
-# gauss, sobel, via kornia / manually
-# hessian by double sobel - maybe do gauss, sobel manually s.t can reuse here
-# mean either with kornia bilateral or by convolving with (unit kernel / N_px)
-# median via kornia
-# max & min with max/min pools and stride  = 1(NB this will be square but w/e). min_pool = - maxpool(-x)
-# laplace via kornia
-# bilateral via kornia
-# membrane projections manually
-"""
-
 import numpy as np
 from scipy.ndimage import rotate  # type: ignore
 import torch
@@ -49,7 +34,7 @@ def get_multiscale_gaussian_kernel(
     # get kernel of shape (N_s, max_k, max_k) where max_k is largest (truncated) gaussian kernel
     N = len(sigmas)
     max_s = max(sigmas)
-    max_k = 2 * int(max_s * mult) + 1
+    max_k = 4 * int(max_s * mult) + 1
     filters = torch.zeros(
         (N, 1, max_k, max_k), dtype=dtype, device=device, requires_grad=False
     )
@@ -65,13 +50,13 @@ def get_sobel_kernel(
     device: torch.device, dtype: torch.dtype, n_channels: int
 ) -> torch.Tensor:
     g_y = torch.tensor(
-        [[1, 2, 1], [0, 0, 0], [-1, -2, -1]],
+        [[1, 0, -1], [2, 0, -2], [1, 0, -1]],
         dtype=dtype,
         device=device,
         requires_grad=False,
     )
     g_x = torch.tensor(
-        [[1, 0, -1], [2, 0, -2], [1, 0, -1]],
+        [[1, 2, 1], [0, 0, 0], [-1, -2, -1]],
         dtype=dtype,
         device=device,
         requires_grad=False,
@@ -107,16 +92,18 @@ def convolve(
     _, in_ch, _, _ = img.shape
     if norm:
         summand = torch.sum(torch.abs(kernel), dim=(2, 3), keepdim=True)
-        kernel = kernel / summand
+        kernel_norm = kernel / summand
+    else:
+        kernel_norm = kernel
 
-    convolved = conv2d(img, kernel, stride=1, groups=in_ch)
+    convolved = conv2d(img, kernel_norm, stride=1, groups=in_ch)
     return convolved
 
 
 def get_gradient_mag(edges: torch.Tensor) -> torch.Tensor:
     g_x = edges[0:1, 0::2]
     g_y = edges[0:1, 1::2]
-    return torch.sqrt(g_x * g_x + g_y * g_y)
+    return torch.sqrt((g_x**2 + g_y**2))
 
 
 def singescale_hessian(
@@ -292,7 +279,9 @@ def multiscale_features_gpu(
     sobel_kernel = get_sobel_kernel(device, dtype, C)
     sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
 
-    membrane_kernel = get_membrane_proj_kernel(device, dtype, C)
+    membrane_kernel = get_membrane_proj_kernel(
+        device, dtype, C, config.membrane_patch_size, config.membrane_thickness
+    )
 
     gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
 
