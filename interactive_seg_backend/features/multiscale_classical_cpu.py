@@ -77,8 +77,10 @@ def singlescale_gaussian(
     :rtype: np.ndarray
     """
     adj_sigma = mult * sigma
+    k = 4 * adj_sigma + 1
+    trunc = (k + 1) / (2 * adj_sigma)
     out: npt.NDArray[np.float32] = filters.gaussian(
-        img, sigma=int(adj_sigma), preserve_range=True, truncate=1.0
+        img, sigma=int(adj_sigma), preserve_range=True, truncate=trunc
     )
     return out
 
@@ -93,8 +95,12 @@ def singlescale_edges(
     :return: sobel filtered (edge-detecting) array
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.float32] = filters.sobel(gaussian_filtered)
-    return out
+    g_x = np.gradient(gaussian_filtered, axis=-1)
+    g_y = np.gradient(gaussian_filtered, axis=-2)
+    # out: npt.NDArray[np.float32] = filters.sobel(
+    #     gaussian_filtered,
+    # )
+    return np.sqrt(g_x**2 + g_y**2)
 
 
 def singlescale_hessian(
@@ -290,7 +296,9 @@ def membrane_projections(
     x1 = 1 + membrane_patch_size // 2 + membrane_thickness // 2
     kernel[:, x0:x1] = 1
 
-    all_kernels = [np.rint(rotate(kernel, angle)) for angle in range(0, 180, 6)]
+    all_kernels = [
+        np.rint(rotate(kernel, angle, reshape=False)) for angle in range(0, 180, 6)
+    ]
     # map these across threads to speed up (order unimportant)
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
         out_angles: list[npt.NDArray[np.float32]] = list(
