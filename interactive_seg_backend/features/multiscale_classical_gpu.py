@@ -292,7 +292,7 @@ def multiscale_features_gpu(
     sobel_kernel = get_sobel_kernel(device, dtype, C)
     sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
 
-    membrane_kernel = get_membrane_proj_kernel(device, torch.float32, C)
+    membrane_kernel = get_membrane_proj_kernel(device, dtype, C)
 
     gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
 
@@ -368,14 +368,14 @@ if __name__ == "__main__":
         maximum=True,
         use_gpu=True,
     )
-    n_ch = 3
+    n_ch = 1
     img = torch.rand(
-        (1, n_ch, 400, 400), device=device, dtype=torch.float32, requires_grad=False
+        (1, n_ch, 400, 400), device=device, dtype=torch.float16, requires_grad=False
     )
 
     start = time()
     torch.cuda.synchronize()
-    feats = multiscale_features_gpu(img, cfg, torch.float32)
+    feats = multiscale_features_gpu(img, cfg, torch.float16)
     feats_np = feats.cpu().numpy()
     torch.cuda.synchronize()
     end = time()
