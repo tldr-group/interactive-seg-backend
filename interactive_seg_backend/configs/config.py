@@ -28,7 +28,7 @@ strs_per_singlescale_feat: dict[PossibleFeatures, tuple[str, ...]] = {
     "sobel_filter": ("sobel_filter",),
     "hessian_filter": (
         "hess_eig_1",
-        "hess_eig_1",
+        "hess_eig_2",
         "hess_mod",
         "hess_trace",
         "hess_det",
