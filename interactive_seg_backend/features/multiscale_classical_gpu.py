@@ -83,18 +83,33 @@ def get_sobel_kernel(
     return filters
 
 
+def reflect_padded(func):  # type: ignore
+    def wrapper(
+        tensor: torch.Tensor,
+        sigma_or_kernel: int | torch.Tensor,
+        *args,  # type: ignore
+        **kwargs,  # type: ignore
+    ) -> torch.Tensor:
+        if isinstance(sigma_or_kernel, torch.Tensor):
+            _, _, kh, kw = sigma_or_kernel.shape
+        else:
+            kh, kw = 2 * sigma_or_kernel + 1, 2 * sigma_or_kernel + 1
+        padded = pad(tensor, (kw // 2, kw // 2, kh // 2, kh // 2), mode="reflect")
+        return func(padded, sigma_or_kernel, *args, **kwargs)
+
+    return wrapper
+
+
+@reflect_padded
 def convolve(
     img: torch.Tensor, kernel: torch.Tensor, norm: bool = False
 ) -> torch.Tensor:
     _, in_ch, _, _ = img.shape
-    _, _, kh, kw = kernel.shape
-
     if norm:
         summand = torch.sum(torch.abs(kernel), dim=(2, 3), keepdim=True)
         kernel = kernel / summand
 
-    padded = pad(img, (kw // 2, kw // 2, kh // 2, kh // 2), mode="reflect")
-    convolved = conv2d(padded, kernel, stride=1, groups=in_ch)
+    convolved = conv2d(img, kernel, stride=1, groups=in_ch)
     return convolved
 
 
@@ -140,21 +155,24 @@ def singescale_hessian(
     return out
 
 
+@reflect_padded
 def singlescale_mean(img: torch.Tensor, sigma: int) -> torch.Tensor:
     k = 2 * sigma + 1
-    out = avg_pool2d(img, k, 1, (k // 2), ceil_mode=True)
+    out = avg_pool2d(img, k, 1, ceil_mode=True)
     return out
 
 
+@reflect_padded
 def singlescale_maximum(img: torch.Tensor, sigma: int) -> torch.Tensor:
     k = 2 * sigma + 1
-    out = max_pool2d(img, k, 1, (k // 2), ceil_mode=True)
+    out = max_pool2d(img, k, 1, ceil_mode=True)
     return out
 
 
+@reflect_padded
 def singlescale_minimum(img: torch.Tensor, sigma: int) -> torch.Tensor:
     k = 2 * sigma + 1
-    out = -max_pool2d(-img, k, 1, (k // 2), ceil_mode=True)
+    out = -max_pool2d(-img, k, 1, ceil_mode=True)
     return out
 
 
