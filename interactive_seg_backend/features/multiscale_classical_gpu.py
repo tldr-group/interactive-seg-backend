@@ -44,18 +44,18 @@ def get_multiscale_gaussian_kernel(
     dtype: torch.dtype,
     sigmas: tuple[float, ...],
     n_channels: int,
-    mult: float = 0.4,
+    mult: float = 1.0,
 ) -> torch.Tensor:
     # get kernel of shape (N_s, max_k, max_k) where max_k is largest (truncated) gaussian kernel
     N = len(sigmas)
     max_s = max(sigmas)
-    max_k = 2 * int(max_s * mult) + 1
+    max_k = 4 * int(max_s * mult) + 1
     filters = torch.zeros(
         (N, 1, max_k, max_k), dtype=dtype, device=device, requires_grad=False
     )
     for i, sigma in enumerate(sigmas):
         filters[i, :, :, :] = get_gaussian_kernel2d(
-            (max_k, max_k), (sigma, sigma), device=device, dtype=dtype
+            (max_k, max_k), (sigma * mult, sigma * mult), device=device, dtype=dtype
         )
     filters = torch.tile(filters, (n_channels, 1, 1, 1))
     return filters
@@ -223,7 +223,7 @@ def get_membrane_proj_kernel(
 
 
 def membrane_projections(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
-    projs = convolve(img, kernel)
+    projs = convolve(img, kernel, False)
     sum_proj = torch.sum(projs, dim=1)
     mean_proj = torch.mean(projs, dim=1)
     std_proj = torch.std(projs, dim=1)
@@ -247,7 +247,7 @@ def zero_scale_filters(
     """Weka *always* adds the original image, and if computing edgees and/or hessian,
     adds those for sigma=0. This function does that."""
     out_filtered: list[torch.Tensor] = [img]
-    edges = convolve(img, sobel_kernel)
+    edges = convolve(img, sobel_kernel, True)
     if sobel_filter:
         out_filtered.append(get_gradient_mag(edges))
     if hessian_filter:
@@ -268,13 +268,14 @@ def multiscale_features_gpu(
     converted_img = (raw_img * (1 / amax)).to(dtype)
 
     device = raw_img.device
-    gauss_kernel = get_multiscale_gaussian_kernel(device, dtype, config.sigmas, C)
+    mult = 0.4 if config.add_weka_sigma_multiplier else 1
+    gauss_kernel = get_multiscale_gaussian_kernel(device, dtype, config.sigmas, C, mult)
     sobel_kernel = get_sobel_kernel(device, dtype, C)
     sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
 
     membrane_kernel = get_membrane_proj_kernel(device, torch.float32, C)
 
-    gaussian_blurs = convolve(converted_img, gauss_kernel)
+    gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
 
     features: list[torch.Tensor]
     if config.add_zero_scale_features:
