@@ -41,8 +41,12 @@ def plot_single_axis(
     )
 
 
-def setup_figure(n_cols: int, n_rows: int = 2) -> tuple[Figure, npt.NDArray[Any]]:
+def setup_figure(
+    n_cols: int, n_rows: int = 2, add_diff_hist: bool = False
+) -> tuple[Figure, npt.NDArray[Any]]:
     axs: npt.NDArray[Any]
+    if add_diff_hist:
+        n_rows += 1
     fig, axs = plt.subplots(ncols=n_cols, nrows=n_rows)
     fig.set_size_inches((4.75 * n_cols), (4.5 * n_rows))
     return fig, axs
@@ -50,6 +54,7 @@ def setup_figure(n_cols: int, n_rows: int = 2) -> tuple[Figure, npt.NDArray[Any]
 
 if __name__ == "__main__":
     DATA = imread("tests/data/0.tif")
+    ADD_DIFF_HIST = True
 
     cfg = FeatureConfig(
         sigmas=(1.0, 4.0, 16.0),
@@ -71,7 +76,7 @@ if __name__ == "__main__":
 
     feat_names = cfg.get_filter_strings()
 
-    fig, axs = setup_figure(len(feat_names))
+    fig, axs = setup_figure(len(feat_names), add_diff_hist=ADD_DIFF_HIST)
 
     for i, name in enumerate(feat_names):
         arrs = (feats_cpu[:, :, i], feats_gpu_np[:, :, i])
@@ -86,5 +91,9 @@ if __name__ == "__main__":
                 label = None
 
             plot_single_axis(fig, axs[j, i], arr, name, label, vmin, vmax)
+        if ADD_DIFF_HIST:
+            h, w = arrs[0].shape
+            diffs = np.abs((arrs[0] - arrs[1])).reshape(h * w)
+            axs[-1, i].hist(diffs, density=True, bins=100)
     plt.tight_layout()
     plt.savefig("tests/out/vis.png")
