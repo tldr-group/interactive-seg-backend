@@ -17,16 +17,28 @@ from typing import Any
 
 
 def plot_single_axis(
-    fig, ax, data: np.ndarray, title: str, ylabel: str | None = None
+    fig,
+    ax,
+    data: np.ndarray,
+    title: str,
+    ylabel: str | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
 ) -> None:
     fontsize = 20
-    mappable = ax.imshow(data, cmap="plasma")
+    if vmin is not None and vmax is not None:
+        mappable = ax.imshow(data, cmap="plasma", vmin=vmin, vmax=vmax)
+    else:
+        mappable = ax.imshow(data, cmap="plasma")
     ax.set_title(title, fontsize=fontsize)
     ax.set_xticks([])
     ax.set_yticks([])
     if ylabel is not None:
         ax.set_ylabel(ylabel, fontsize=fontsize)
-    fig.colorbar(mappable, ax=ax)
+    fig.colorbar(
+        mappable,
+        ax=ax,
+    )
 
 
 def setup_figure(n_cols: int, n_rows: int = 2) -> tuple[Figure, npt.NDArray[Any]]:
@@ -40,12 +52,10 @@ if __name__ == "__main__":
     DATA = imread("tests/data/0.tif")
 
     cfg = FeatureConfig(
-        sigmas=(1.0, 2.0, 4.0),
+        sigmas=(1.0, 4.0, 16.0),
         mean=True,
         maximum=True,
         minimum=True,
-        median=True,
-        bilateral=True,
         laplacian=True,
         add_weka_sigma_multiplier=False,
     )
@@ -61,10 +71,12 @@ if __name__ == "__main__":
 
     feat_names = cfg.get_filter_strings()
 
-    fig, axs = setup_figure(len(feat_names[:10]))
+    fig, axs = setup_figure(len(feat_names))
 
-    for i, name in enumerate(feat_names[:10]):
+    for i, name in enumerate(feat_names):
         arrs = (feats_cpu[:, :, i], feats_gpu_np[:, :, i])
+        vmin, vmax = np.amin(arrs[0]), np.amax(arrs[0])
+        print(f"{name}: {vmin}, {vmax}")
         for j, arr in enumerate(arrs):
             if i == 0 and j == 0:
                 label = "CPU"
@@ -72,6 +84,7 @@ if __name__ == "__main__":
                 label = "GPU"
             else:
                 label = None
-            plot_single_axis(fig, axs[j, i], arr, name, label)
+
+            plot_single_axis(fig, axs[j, i], arr, name, label, vmin, vmax)
     plt.tight_layout()
     plt.savefig("tests/out/vis.png")
