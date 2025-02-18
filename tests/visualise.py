@@ -1,9 +1,9 @@
 import numpy as np
 import numpy.typing as npt
 import torch
+from random import shuffle
 
 from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 from tifffile import imread
 
@@ -52,6 +52,47 @@ def setup_figure(
     return fig, axs
 
 
+def plot(
+    cpu_feats: np.ndarray,
+    gpu_feats: np.ndarray,
+    cfg: FeatureConfig,
+    add_diff: bool = False,
+    n_subsample: int = -1,
+) -> None:
+    feat_names = cfg.get_filter_strings()
+
+    inds = list(range(0, len(feat_names)))
+    if n_subsample > 0:
+        shuffle(inds)
+        sample_inds = inds[:n_subsample]
+    else:
+        sample_inds = inds
+    feat_names = [feat_names[ind] for ind in sample_inds]
+
+    fig, axs = setup_figure(len(feat_names), add_diff_hist=ADD_DIFF_HIST)
+
+    for i, name in enumerate(feat_names):
+        arrs = (cpu_feats[:, :, i], gpu_feats[:, :, i])
+        vmin, vmax = np.amin(arrs[0]), np.amax(arrs[0])
+        # print(f"{name}: {vmin}, {vmax}")
+        for j, arr in enumerate(arrs):
+            if i == 0 and j == 0:
+                label = "CPU"
+            elif i == 0 and j == 1:
+                label = "GPU"
+            else:
+                label = None
+
+            plot_single_axis(fig, axs[j, i], arr, name, label, vmin, vmax)
+        if add_diff:
+            h, w = arrs[0].shape
+            diffs = np.abs((arrs[0] - arrs[1])).reshape(h * w)
+            axs[-1, i].hist(diffs, density=True, bins=100)
+    plt.tight_layout()
+    plt.savefig("tests/out/vis.png")
+    plt.close()
+
+
 if __name__ == "__main__":
     DATA = imread("tests/data/0.tif")
     ADD_DIFF_HIST = True
@@ -74,26 +115,4 @@ if __name__ == "__main__":
     feats_gpu = multiscale_features_gpu(img_tensor, cfg, torch.float32)
     feats_gpu_np: np.ndarray = feats_gpu.cpu().numpy()
 
-    feat_names = cfg.get_filter_strings()
-
-    fig, axs = setup_figure(len(feat_names), add_diff_hist=ADD_DIFF_HIST)
-
-    for i, name in enumerate(feat_names):
-        arrs = (feats_cpu[:, :, i], feats_gpu_np[:, :, i])
-        vmin, vmax = np.amin(arrs[0]), np.amax(arrs[0])
-        print(f"{name}: {vmin}, {vmax}")
-        for j, arr in enumerate(arrs):
-            if i == 0 and j == 0:
-                label = "CPU"
-            elif i == 0 and j == 1:
-                label = "GPU"
-            else:
-                label = None
-
-            plot_single_axis(fig, axs[j, i], arr, name, label, vmin, vmax)
-        if ADD_DIFF_HIST:
-            h, w = arrs[0].shape
-            diffs = np.abs((arrs[0] - arrs[1])).reshape(h * w)
-            axs[-1, i].hist(diffs, density=True, bins=100)
-    plt.tight_layout()
-    plt.savefig("tests/out/vis.png")
+    plot(feats_cpu, feats_gpu_np, cfg, ADD_DIFF_HIST, 10)
