@@ -78,11 +78,19 @@ def load_image(path: str) -> Arr:
 
 
 def save_segmentation(
-    arr: npt.NDArray[np.uint8], out_path: str, rescale: bool = True
+    arr: npt.NDArray[np.uint8],
+    out_path: str,
+    rescale: bool = True,
+    as_png: bool = False,
 ) -> None:
     to_save: npt.NDArray[np.uint8]
     if rescale:
         to_save = rescale_labels_to_greyscale(arr)
     else:
         to_save = arr
-    imwrite(out_path, to_save, compression=COMPRESSION.DEFLATE)
+
+    if as_png:
+        img = Image.fromarray(to_save)
+        img.save(out_path)
+    else:
+        imwrite(out_path, to_save, compression=COMPRESSION.DEFLATE)
