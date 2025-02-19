@@ -1,12 +1,8 @@
-# TODO:
-# - equivalence tests (CPU <-> GPU)
-# - vis of slices of stack (cpu, gpu, weka?)
-# - comparison to weka?
 import numpy as np
 import torch
 from math import isclose, pi
 from skimage.metrics import mean_squared_error
-from tifffile import imread, imwrite
+from tifffile import imread
 
 from interactive_seg_backend.configs import FeatureConfig
 import interactive_seg_backend.features.multiscale_classical_cpu as ft
@@ -14,6 +10,7 @@ import interactive_seg_backend.features.multiscale_classical_gpu as ft_gpu
 
 from visualise import plot
 
+np.random.seed(1234521)
 SIGMA = 5
 FOOTPRINT = ft.make_footprint(sigma=SIGMA)
 CIRCLE = np.pad(FOOTPRINT, ((2, 2), (2, 2))).astype(np.float32)
@@ -169,6 +166,31 @@ def norm_get_mse(filter_1: np.ndarray, filter_2: np.ndarray) -> float:
 AVG_MSE_CUTOFF = 0.03
 
 
+def compare_two_stacks(
+    stack_1: np.ndarray,
+    stack_2: np.ndarray,
+    cutoff: float,
+    feat_names: list[str],
+    skip_feats: list[str] = [],
+) -> None:
+    checks: list[tuple[str, bool, float]] = []
+    for i, feat_name in enumerate(feat_names):
+        if feat_name in skip_feats:
+            continue
+        slice_1 = stack_1[:, :, i]
+        slice_2 = stack_2[:, :, i]
+
+        diff = norm_get_mse(slice_1, slice_2)
+
+        passed = diff < cutoff
+        checks.append((feat_name, passed, diff))
+    passed_all = all([t[1] for t in checks])
+    if not passed_all:
+        failed = [t for t in checks if t[1] == False]
+        print(failed)
+        assert False
+
+
 class TestGPUCPUEquivalence:
     def test_e2e_equiv(self) -> None:
         cfg = FeatureConfig(
@@ -196,19 +218,7 @@ class TestGPUCPUEquivalence:
         )
 
         feat_names = cfg.get_filter_strings()
-
-        checks: list[tuple[str, bool, float]] = []
-        for i, feat_name in enumerate(feat_names):
-            cpu = feats_cpu[:, :, i]
-            gpu = feats_gpu_np[:, :, i]
-
-            diff = norm_get_mse(cpu, gpu)
-
-            passed = diff < AVG_MSE_CUTOFF
-            checks.append((feat_name, passed, diff))
-        passed_all = all([t[1] for t in checks])
-        if not passed_all:
-            assert False
+        compare_two_stacks(feats_cpu, feats_gpu_np, AVG_MSE_CUTOFF, feat_names)
 
 
 class TestCPUWekaEquivalence:
@@ -265,7 +275,6 @@ class TestCPUWekaEquivalence:
                     ours_dog_idx = scalefree_start_idx + n_dog
                     out[:, :, ours_dog_idx] = full_stack[:, :, dog_idx]
                     n_dog += 1
-                print(sigma, j, n_dog)
             if i >= 1:
                 for n_avg in range(4):  # mean, min, max, median - same order as ours
                     avg_idx = (
@@ -281,7 +290,6 @@ class TestCPUWekaEquivalence:
     def test_e2e_equiv(self) -> None:
         weka_stack = imread("tests/data/feature-stack.tif").transpose((1, 2, 0))
 
-        print(weka_stack.shape)
         cfg = FeatureConfig(
             sigmas=(1.0, 2.0, 4.0, 8.0),
             mean=True,
@@ -295,11 +303,16 @@ class TestCPUWekaEquivalence:
         weka_stack_remapped = self.get_matching_weka_filters(
             cfg.sigmas, weka_stack, n_feats_out
         )
-        ours = ft.multiscale_features(DATA, cfg)
-        imwrite("tests/data/ours.tif", ours.transpose(2, 0, 1))
-        imwrite("tests/data/weka_remapped.tif", weka_stack_remapped.transpose(2, 0, 1))
+        ours_stack = ft.multiscale_features(DATA, cfg)
+        feat_names = cfg.get_filter_strings()
 
-        plot(ours, weka_stack_remapped, cfg, add_diff=True, labels=("ours", "weka"))
+        compare_two_stacks(
+            ours_stack,
+            weka_stack_remapped,
+            AVG_MSE_CUTOFF,
+            feat_names,
+            ["DoG_σ2.0_1.0"],
+        )
 
 
 if __name__ == "__main__":
