@@ -1,6 +1,14 @@
 # interactive-seg-backend
 Generic backend for interactive feature-based segmentation in python.
 
+## TODO:
+- file handling
+- data handling
+- classifier(s)
+- applying: patched, 3D (+ average), all with memory consideration (caching)
+- (pre/post) processing
+- improvements: fixed vf, autocontext, rules?
+
 ## Installation:
 
 To install locally in editable mode:
