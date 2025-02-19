@@ -16,8 +16,6 @@ from interactive_seg_backend.core import (
 )
 from interactive_seg_backend.utils import class_avg_miou
 
-import matplotlib.pyplot as plt
-
 
 TEST_IMAGE_SHAPE = (512, 512)
 
