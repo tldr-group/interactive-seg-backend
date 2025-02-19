@@ -1,11 +1,12 @@
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier  # TODO: generalise to classifiers
 
-from interactive_seg_backend.configs.types import Arr, UInt8Arr, Classifiers
+from interactive_seg_backend.configs.types import Arr, UInt8Arr, ClassifierNames
+from interactive_seg_backend.classifiers import Classifier, RandomForest
 
-from typing import Any, TypeAlias
+from typing import Any
 
-Classifier: TypeAlias = RandomForestClassifier
+# Classifier: TypeAlias = RandomForestClassifier
 
 
 def get_labelled_training_data_from_stack(
@@ -36,9 +37,9 @@ def shuffle_sample_training_data(
         return fit[all_inds], target[all_inds]
 
 
-def get_model(model_type: Classifiers, extra_args: dict[str, Any]) -> Classifier:
+def get_model(model_type: ClassifierNames, extra_args: dict[str, Any]) -> Classifier:
     if model_type == "random_forest":
-        return RandomForestClassifier(**extra_args)
+        return RandomForest(extra_args)
     else:
         raise Exception("Not implemented!")
 

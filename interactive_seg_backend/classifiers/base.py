@@ -15,7 +15,9 @@ class Classifier(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def fit(self, train_data: Arr, target_data: UInt8Arr):
+    def fit(
+        self, train_data: Arr, target_data: UInt8Arr, sample_weights: Arr | None = None
+    ):
         return self
 
     @abstractmethod
