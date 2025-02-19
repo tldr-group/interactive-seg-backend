@@ -11,6 +11,7 @@ import interactive_seg_backend.features.multiscale_classical_cpu as ft
 import interactive_seg_backend.features.multiscale_classical_gpu as ft_gpu
 
 # from visualise import plot
+# TODO: rewrite all these to just be normal functions + pytest fixtures
 
 np.random.seed(1234521)
 SIGMA = 5
@@ -325,4 +326,4 @@ class TestCPUWekaEquivalence:
 
 
 if __name__ == "__main__":
-    pytest.main()
+    pytest.main(args=["-k test_features"])
