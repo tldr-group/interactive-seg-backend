@@ -2,16 +2,17 @@
 # - equivalence tests (CPU <-> GPU)
 # - vis of slices of stack (cpu, gpu, weka?)
 # - comparison to weka?
-import pytest
 import numpy as np
 import torch
 from math import isclose, pi
-from tifffile import imread
 from skimage.metrics import mean_squared_error
+from tifffile import imread, imwrite
 
 from interactive_seg_backend.configs import FeatureConfig
 import interactive_seg_backend.features.multiscale_classical_cpu as ft
 import interactive_seg_backend.features.multiscale_classical_gpu as ft_gpu
+
+from visualise import plot
 
 SIGMA = 5
 FOOTPRINT = ft.make_footprint(sigma=SIGMA)
@@ -169,7 +170,7 @@ AVG_MSE_CUTOFF = 0.03
 
 
 class TestGPUCPUEquivalence:
-    def test_e2e_equiv(self):
+    def test_e2e_equiv(self) -> None:
         cfg = FeatureConfig(
             sigmas=(1.0, 2.0, 4.0, 8.0),
             mean=True,
@@ -210,5 +211,98 @@ class TestGPUCPUEquivalence:
             assert False
 
 
+class TestCPUWekaEquivalence:
+    def get_matching_weka_filters(
+        self, sigmas: tuple[float, ...], full_stack: np.ndarray, n_feats_out: int
+    ) -> np.ndarray:
+        h, w, _ = full_stack.shape
+        out = np.zeros((h, w, n_feats_out))
+
+        new_sigmas = (0, *sigmas)
+        filters_per_sigma_zero = 10
+        filters_per_sigma_full = 25 - 11
+        filters_per_sigma_zero_ours = 7
+        filters_per_sigma_full_ours = 11
+        scalefree_start_idx = -12
+
+        n_dog = 0
+        for i, sigma in enumerate(new_sigmas):
+            if i > 0:
+                weka_init_idx = (
+                    (i - 1) * filters_per_sigma_full + filters_per_sigma_zero + n_dog
+                )
+                ours_init_idx = (
+                    i - 1
+                ) * filters_per_sigma_full_ours + filters_per_sigma_zero_ours
+            else:
+                weka_init_idx = 0
+                ours_init_idx = 0
+            gauss_idx = weka_init_idx
+            sobel_idx = weka_init_idx + 1
+            hess_eig_1_idx = weka_init_idx + 5
+            hess_eig_2_idx = weka_init_idx + 6
+            hess_mod_idx = weka_init_idx + 2
+            hess_trace_idx = weka_init_idx + 3
+            hess_det_idx = weka_init_idx + 4
+            singlescale_idxs = [
+                gauss_idx,
+                sobel_idx,
+                hess_eig_1_idx,
+                hess_eig_2_idx,
+                hess_mod_idx,
+                hess_trace_idx,
+                hess_det_idx,
+            ]
+
+            for k, weka_idx in enumerate(singlescale_idxs):
+                out[:, :, ours_init_idx + k] = full_stack[:, :, weka_idx]
+
+            j = 0
+            # weka has weird order for last sigma: DoGs first, then min max mean
+            if i > 1:
+                for j in range(i - 1):  # sigma = 1 has no DoG
+                    dog_idx = weka_init_idx + 10 + j
+                    ours_dog_idx = scalefree_start_idx + n_dog
+                    out[:, :, ours_dog_idx] = full_stack[:, :, dog_idx]
+                    n_dog += 1
+                print(sigma, j, n_dog)
+            if i >= 1:
+                for n_avg in range(4):  # mean, min, max, median - same order as ours
+                    avg_idx = (
+                        weka_init_idx + 10 + (j + 1) + n_avg
+                    )  # need to account for their DoG ordering
+                    avg_idx_ours = ours_init_idx + len(singlescale_idxs) + n_avg
+                    out[:, :, avg_idx_ours] = full_stack[:, :, avg_idx]
+        N_MEMBRANE_PROJ = 6
+        for mp in range(N_MEMBRANE_PROJ, 0, -1):
+            out[:, :, -mp] = full_stack[:, :, -mp]
+        return out
+
+    def test_e2e_equiv(self) -> None:
+        weka_stack = imread("tests/data/feature-stack.tif").transpose((1, 2, 0))
+
+        print(weka_stack.shape)
+        cfg = FeatureConfig(
+            sigmas=(1.0, 2.0, 4.0, 8.0),
+            mean=True,
+            maximum=True,
+            minimum=True,
+            median=True,
+            add_weka_sigma_multiplier=True,
+            add_zero_scale_features=True,
+        )
+        n_feats_out = len(cfg.get_filter_strings())
+        weka_stack_remapped = self.get_matching_weka_filters(
+            cfg.sigmas, weka_stack, n_feats_out
+        )
+        ours = ft.multiscale_features(DATA, cfg)
+        imwrite("tests/data/ours.tif", ours.transpose(2, 0, 1))
+        imwrite("tests/data/weka_remapped.tif", weka_stack_remapped.transpose(2, 0, 1))
+
+        plot(ours, weka_stack_remapped, cfg, add_diff=True, labels=("ours", "weka"))
+
+
 if __name__ == "__main__":
-    pytest.main()
+    # pytest.main()
+    f = TestCPUWekaEquivalence()
+    f.test_e2e_equiv()
