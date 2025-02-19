@@ -1,4 +1,6 @@
+import pytest
 import numpy as np
+import numpy.typing as npt
 import torch
 from math import isclose, pi
 from skimage.metrics import mean_squared_error
@@ -8,7 +10,7 @@ from interactive_seg_backend.configs import FeatureConfig
 import interactive_seg_backend.features.multiscale_classical_cpu as ft
 import interactive_seg_backend.features.multiscale_classical_gpu as ft_gpu
 
-from visualise import plot
+# from visualise import plot
 
 np.random.seed(1234521)
 SIGMA = 5
@@ -20,12 +22,14 @@ CIRCLE_BYTE = (255 * CIRCLE).astype(np.uint8)
 DATA = imread("tests/data/0.tif")
 
 
-def _test_centre_val(filtered_arr: np.ndarray, val: float | int):
+def _test_centre_val(filtered_arr: npt.NDArray[np.uint8], val: float | int):
     centre_val = filtered_arr[CENTRE[1], CENTRE[0]]
     assert isclose(centre_val, val, abs_tol=1e-6)
 
 
-def _test_sum(filtered_arr: np.ndarray, val: float | int):
+def _test_sum(
+    filtered_arr: npt.NDArray[np.float32] | npt.NDArray[np.uint8], val: float | int
+):
     assert isclose(np.sum(filtered_arr), val, abs_tol=1e-6)
 
 
@@ -106,7 +110,7 @@ class TestFeatureCorrectness:
         Membrane projections emphasise lines of similar value pixels. Here we test it on a line of pixels -
         the max value should be in the centre and it should decrease montonically from that.
         """
-        line = np.zeros((64, 64))
+        line = np.zeros((64, 64), dtype=np.float32)
         line[:, 32] = 1
         z_projs = ft.membrane_projections(line, num_workers=1)
         filtered = z_projs[0]
@@ -129,13 +133,13 @@ class TestFeatureCorrectness:
         """
         bilevel = np.ones((64, 64), dtype=np.uint8) * 20
         bilevel[:, 32:] = 100
-        bilaterals = ft.bilateral(bilevel)
+        bilaterals = ft.bilateral(bilevel.astype(np.uint8))
         assert np.sum(bilaterals[0]) > np.sum(bilaterals[1])
         assert np.sum(bilaterals[0]) == np.sum(bilaterals[2])
         assert np.sum(bilaterals[0]) > np.sum(bilaterals[3])
 
 
-def norm(arr: np.ndarray) -> np.ndarray:
+def norm(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     """Normalise array by subtracting its min then dividing my max of new arr. Works for mixes of positive and negative.
 
     :param arr: arr to normalise
@@ -148,7 +152,9 @@ def norm(arr: np.ndarray) -> np.ndarray:
     return np.abs(normed)
 
 
-def norm_get_mse(filter_1: np.ndarray, filter_2: np.ndarray) -> float:
+def norm_get_mse(
+    filter_1: npt.NDArray[np.float32], filter_2: npt.NDArray[np.float32]
+) -> float:
     """Normalise both filters (arrays) and get the mse.
 
     :param filter_1: first arr
@@ -167,8 +173,8 @@ AVG_MSE_CUTOFF = 0.03
 
 
 def compare_two_stacks(
-    stack_1: np.ndarray,
-    stack_2: np.ndarray,
+    stack_1: npt.NDArray[np.float32],
+    stack_2: npt.NDArray[np.float32],
     cutoff: float,
     feat_names: list[str],
     skip_feats: list[str] = [],
@@ -202,7 +208,7 @@ class TestGPUCPUEquivalence:
             bilateral=True,
             add_weka_sigma_multiplier=False,
         )
-        feats_cpu = ft.multiscale_features(DATA, cfg)
+        feats_cpu: npt.NDArray[np.float32] = ft.multiscale_features(DATA, cfg)
 
         img_tensor = (
             torch.tensor(DATA, device="cuda:0", dtype=torch.float32)
@@ -211,7 +217,7 @@ class TestGPUCPUEquivalence:
         )
         assert len(img_tensor.shape) == 4, "need (B,C,H,W) tensor for GPU feats"
         feats_gpu = ft_gpu.multiscale_features_gpu(img_tensor, cfg, torch.float32)
-        feats_gpu_np: np.ndarrray = feats_gpu.cpu().numpy()
+        feats_gpu_np: npt.NDArray[np.float32] = feats_gpu.cpu().numpy()
 
         assert feats_cpu.shape == feats_gpu.shape, (
             f"{feats_cpu.shape} != {feats_gpu.shape}!"
@@ -223,10 +229,13 @@ class TestGPUCPUEquivalence:
 
 class TestCPUWekaEquivalence:
     def get_matching_weka_filters(
-        self, sigmas: tuple[float, ...], full_stack: np.ndarray, n_feats_out: int
-    ) -> np.ndarray:
+        self,
+        sigmas: tuple[float, ...],
+        full_stack: npt.NDArray[np.float32],
+        n_feats_out: int,
+    ) -> npt.NDArray[np.float32]:
         h, w, _ = full_stack.shape
-        out = np.zeros((h, w, n_feats_out))
+        out = np.zeros((h, w, n_feats_out), dtype=np.float32)
 
         new_sigmas = (0, *sigmas)
         filters_per_sigma_zero = 10
@@ -236,7 +245,7 @@ class TestCPUWekaEquivalence:
         scalefree_start_idx = -12
 
         n_dog = 0
-        for i, sigma in enumerate(new_sigmas):
+        for i, _ in enumerate(new_sigmas):
             if i > 0:
                 weka_init_idx = (
                     (i - 1) * filters_per_sigma_full + filters_per_sigma_zero + n_dog
@@ -316,6 +325,4 @@ class TestCPUWekaEquivalence:
 
 
 if __name__ == "__main__":
-    # pytest.main()
-    f = TestCPUWekaEquivalence()
-    f.test_e2e_equiv()
+    pytest.main()
