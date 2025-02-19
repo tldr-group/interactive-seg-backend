@@ -2,7 +2,11 @@ import pytest
 
 from interactive_seg_backend.configs import Arr, UInt8Arr, FeatureConfig, TrainingConfig
 from interactive_seg_backend.features import multiscale_features
-from interactive_seg_backend.file_handling import load_image, load_labels
+from interactive_seg_backend.file_handling import (
+    load_image,
+    load_labels,
+    save_segmentation,
+)
 from interactive_seg_backend.core import (
     get_labelled_training_data_from_stack,
     shuffle_sample_training_data,
@@ -10,6 +14,9 @@ from interactive_seg_backend.core import (
     train,
     apply,
 )
+from interactive_seg_backend.utils import class_avg_miou
+
+import matplotlib.pyplot as plt
 
 
 TEST_IMAGE_SHAPE = (512, 512)
@@ -55,6 +62,9 @@ def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
     return TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
+MIOU_CUTOFF = 0.8
+
+
 def test_e2e(feature_stack: Arr, labels: UInt8Arr, train_cfg: TrainingConfig):
     fit, target = get_labelled_training_data_from_stack(feature_stack, labels)
     fit, target = shuffle_sample_training_data(
@@ -62,11 +72,18 @@ def test_e2e(feature_stack: Arr, labels: UInt8Arr, train_cfg: TrainingConfig):
     )
     model = get_model(train_cfg.classifier, train_cfg.classifier_params)
     model = train(model, fit, target, None)
-    res = apply(model, feature_stack)
-    rh, rw = res.shape
+    pred = apply(model, feature_stack)
+    rh, rw = pred.shape
     fh, fw, _ = feature_stack.shape
+
+    save_segmentation(pred, "tests/out/0_seg.tif")
+
     assert rh == fh
     assert rw == fw
+
+    ground_truth = load_labels("tests/data/0_ground_truth.tif")
+    miou = class_avg_miou(pred, ground_truth)
+    assert miou > MIOU_CUTOFF
 
 
 if __name__ == "__main__":
