@@ -314,13 +314,12 @@ def multiscale_features_gpu(
 
         if config.mean:
             features.append(singlescale_mean(raw_img, s))
-        if config.median:
-            features.append(singlescale_median(raw_img, s))
-        if config.maximum:
-            features.append(singlescale_maximum(raw_img, s))
         if config.minimum:
             features.append(singlescale_minimum(raw_img, s))
-
+        if config.maximum:
+            features.append(singlescale_maximum(raw_img, s))
+        if config.median:
+            features.append(singlescale_median(raw_img, s))
         if config.laplacian:
             features.append(singlescale_laplacian(blurred, s))
 
