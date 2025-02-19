@@ -330,7 +330,8 @@ def singlescale_singlechannel_features(
         f"img shape {img.shape} wrong, should be 2D/singlechannel"
     )
     results: list[npt.NDArray[np.uint8 | np.float32]] = []
-    gaussian_filtered = singlescale_gaussian(img, sigma)
+    mult = 0.4 if config.add_weka_sigma_multiplier else 1
+    gaussian_filtered = singlescale_gaussian(img, sigma, mult)
     if config.gaussian_blur:
         results.append(gaussian_filtered)
     if config.sobel_filter:
@@ -345,12 +346,12 @@ def singlescale_singlechannel_features(
 
     if config.mean:
         results.append(singlescale_mean(byte_img, circle_footprint))
-    if config.median:
-        results.append(singlescale_median(byte_img, circle_footprint))
-    if config.maximum:
-        results.append(singlescale_maximum(byte_img, circle_footprint))
     if config.minimum:
         results.append(singlescale_minimum(byte_img, circle_footprint))
+    if config.maximum:
+        results.append(singlescale_maximum(byte_img, circle_footprint))
+    if config.median:
+        results.append(singlescale_median(byte_img, circle_footprint))
 
     if config.laplacian:
         results.append(singlescale_laplacian(gaussian_filtered))
