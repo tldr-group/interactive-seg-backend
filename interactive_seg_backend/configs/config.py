@@ -3,20 +3,16 @@ from dataclasses import dataclass, fields, Field, field, asdict
 from json import dumps
 from typing import Any, Literal, get_args
 
-PossibleFeatures = Literal[
-    "gaussian_blur",
-    "sobel_filter",
-    "hessian_filter",
-    "mean",
-    "minimum",
-    "maximum",
-    "median",
-    "laplacian",
-    "structure_tensor_eigvals",
-    "difference_of_gaussians",
-    "membrane_projections",
-    "bilateral",
-]
+from .types import (
+    PossibleFeatures,
+    Classifiers,
+    Preprocessing,
+    Postprocessing,
+    LabellingStrategy,
+    HITLStrategy,
+    Rules,
+)
+
 _FEAT_LIST: list[PossibleFeatures] = get_args(PossibleFeatures)  # type: ignore
 FEATURES: set[PossibleFeatures] = {*_FEAT_LIST}
 SCALEFREE_FEATS: list[PossibleFeatures] = _FEAT_LIST[-3:]
@@ -199,16 +195,6 @@ class FeatureConfig:
         return out_str
 
 
-Classifiers = Literal[
-    "linear_regression", "logistic_regression", "random_forest", "xgb"
-]
-Preprocessing = Literal["denoise", "equalize", "blur"]
-Postprocessing = Literal["modal_filter"]
-LabellingStrategy = Literal["sparse", "dense", "interfaces"]
-HITLStrategy = Literal["wrong", "uncertainty", "representative_weighted"]
-Rules = Literal["volume_fraction", "connectivity"]
-
-
 @dataclass
 class TrainingConfig:
     """Config for end-to-end training: features, classifier, processing, improvements."""
@@ -219,7 +205,10 @@ class TrainingConfig:
     # `classifier_params` are any addtional params passed to classifier init (i.e tree_depth etc)
     # we need field(default_factory) as dicts are mutable and therefore can't be dataclass default args
     classifier_params: dict[str, Any] = field(default_factory=dict)
+
     balance_classes: bool = True
+    shuffle_data: bool = True
+    n_samples: int = -1
 
     preprocessing: tuple[Preprocessing] | None = None
     postprocessing: tuple[Postprocessing] | None = None
