@@ -45,7 +45,7 @@ PossibleFeatures = Literal[
     "bilateral",
 ]
 
-Classifiers = Literal[
+ClassifierNames = Literal[
     "linear_regression", "logistic_regression", "random_forest", "xgb"
 ]
 Preprocessing = Literal["denoise", "equalize", "blur"]

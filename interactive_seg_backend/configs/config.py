@@ -5,7 +5,7 @@ from typing import Any, Literal, get_args
 
 from .types import (
     PossibleFeatures,
-    Classifiers,
+    ClassifierNames,
     Preprocessing,
     Postprocessing,
     LabellingStrategy,
@@ -201,7 +201,7 @@ class TrainingConfig:
 
     feature_config: FeatureConfig
 
-    classifier: Classifiers = "random_forest"
+    classifier: ClassifierNames = "random_forest"
     # `classifier_params` are any addtional params passed to classifier init (i.e tree_depth etc)
     # we need field(default_factory) as dicts are mutable and therefore can't be dataclass default args
     classifier_params: dict[str, Any] = field(default_factory=dict)
