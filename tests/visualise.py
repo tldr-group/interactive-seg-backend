@@ -58,6 +58,7 @@ def plot(
     cfg: FeatureConfig,
     add_diff: bool = False,
     n_subsample: int = -1,
+    labels: tuple[str, ...] = ("CPU", "GPU"),
 ) -> None:
     feat_names = cfg.get_filter_strings()
 
@@ -69,7 +70,7 @@ def plot(
         sample_inds = inds
     feat_names = [feat_names[ind] for ind in sample_inds]
 
-    fig, axs = setup_figure(len(feat_names), add_diff_hist=ADD_DIFF_HIST)
+    fig, axs = setup_figure(len(feat_names), add_diff_hist=add_diff)
 
     for i, name in enumerate(feat_names):
         arrs = (cpu_feats[:, :, i], gpu_feats[:, :, i])
@@ -77,13 +78,19 @@ def plot(
         # print(f"{name}: {vmin}, {vmax}")
         for j, arr in enumerate(arrs):
             if i == 0 and j == 0:
-                label = "CPU"
+                label = labels[0]
             elif i == 0 and j == 1:
-                label = "GPU"
+                label = labels[1]
             else:
                 label = None
 
-            plot_single_axis(fig, axs[j, i], arr, name, label, vmin, vmax)
+            plot_single_axis(
+                fig,
+                axs[j, i],
+                arr,
+                name,
+                label,
+            )  # vmin, vmax
         if add_diff:
             h, w = arrs[0].shape
             diffs = np.abs((arrs[0] - arrs[1])).reshape(h * w)
