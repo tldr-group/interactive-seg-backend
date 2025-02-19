@@ -30,7 +30,7 @@ from itertools import chain
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
-from interactive_seg_backend.configs import FeatureConfig
+from interactive_seg_backend.configs import FeatureConfig, FloatArr, Arr
 
 from time import time
 from typing import Literal
@@ -64,9 +64,7 @@ def make_footprint(sigma: int) -> npt.NDArray[np.uint8]:
 # %% ===================================SINGLESCALE FEATURES===================================
 
 
-def singlescale_gaussian(
-    img: npt.NDArray[np.float32], sigma: int, mult: float = 1.0
-) -> npt.NDArray[np.float32]:
+def singlescale_gaussian(img: FloatArr, sigma: int, mult: float = 1.0) -> FloatArr:
     """Gaussian blur of each pixel in $img of scale/radius $sigma.
 
     :param img: img arr
@@ -79,15 +77,15 @@ def singlescale_gaussian(
     adj_sigma = mult * sigma
     k = 4 * adj_sigma + 1
     trunc = (k + 1) / (2 * adj_sigma)
-    out: npt.NDArray[np.float32] = filters.gaussian(
+    out: FloatArr = filters.gaussian(
         img, sigma=int(adj_sigma), preserve_range=True, truncate=trunc
     )
     return out
 
 
 def singlescale_edges(
-    gaussian_filtered: npt.NDArray[np.float32],
-) -> npt.NDArray[np.float32]:
+    gaussian_filtered: FloatArr,
+) -> FloatArr:
     """Sobel filter applied to gaussian filtered arr of scale sigma to detect edges.
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -97,15 +95,12 @@ def singlescale_edges(
     """
     g_x = np.gradient(gaussian_filtered, axis=-1)
     g_y = np.gradient(gaussian_filtered, axis=-2)
-    # out: npt.NDArray[np.float32] = filters.sobel(
-    #     gaussian_filtered,
-    # )
     return np.sqrt(g_x**2 + g_y**2)
 
 
 def singlescale_hessian(
-    gaussian_filtered: npt.NDArray[np.float32], return_full: bool = True
-) -> tuple[npt.NDArray[np.float32], ...]:
+    gaussian_filtered: FloatArr, return_full: bool = True
+) -> tuple[FloatArr, ...]:
     """Compute mod, trace, det and eigenvalues of Hessian matrix of $gaussian_filtered image (i.e for every pixel).
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -196,9 +191,7 @@ def singlescale_minimum(
     return out
 
 
-def singlescale_structure_tensor(
-    img: npt.NDArray[np.float32], sigma: int
-) -> tuple[npt.NDArray[np.float32], ...]:
+def singlescale_structure_tensor(img: FloatArr, sigma: int) -> tuple[FloatArr, ...]:
     """Compute structure tensor eigenvalues of $img in $sigma radius.
 
     :param img: img arr
@@ -208,12 +201,12 @@ def singlescale_structure_tensor(
     :return: largest two eigenvalues of structure tensor at each pixel
     :rtype: np.ndarray
     """
-    tensor: list[npt.NDArray[np.float32]] = structure_tensor(img, sigma)
-    eigvals: npt.NDArray[np.float32] = structure_tensor_eigenvalues(tensor)
+    tensor: list[FloatArr] = structure_tensor(img, sigma)
+    eigvals: FloatArr = structure_tensor_eigenvalues(tensor)
     return (eigvals[0], eigvals[1])
 
 
-def singlescale_laplacian(img: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
+def singlescale_laplacian(img: FloatArr) -> FloatArr:
     """Compute laplacian of $img on scale $simga. Not currently working.
 
     :param img: img arr
@@ -248,8 +241,8 @@ def bilateral(byte_img: npt.NDArray[np.uint8]) -> list[npt.NDArray[np.uint8]]:
 
 
 def difference_of_gaussians(
-    gaussian_blurs: list[npt.NDArray[np.float32]],
-) -> list[npt.NDArray[np.float32]]:
+    gaussian_blurs: list[FloatArr],
+) -> list[FloatArr]:
     """Compute their difference of each arr in $gaussian_blurs (representing different $sigma scales) with smaller arrs.
 
     :param gaussian_blurs: list of arrs of img filtered with gaussian blur at different length scales
@@ -258,7 +251,7 @@ def difference_of_gaussians(
     :rtype: List[np.ndarray]
     """
     # weka computes dog for  each filter of a *lower* sigma
-    dogs: list[npt.NDArray[np.float32]] = []
+    dogs: list[FloatArr] = []
     for i in range(len(gaussian_blurs)):
         sigma_1 = gaussian_blurs[i]
         for j in range(i):
@@ -268,11 +261,11 @@ def difference_of_gaussians(
 
 
 def membrane_projections(
-    img: npt.NDArray[np.float32],
+    img: FloatArr,
     membrane_patch_size: int = 19,
     membrane_thickness: int = 1,
     num_workers: int | None = N_ALLOWED_CPUS,
-) -> list[npt.NDArray[np.float32]]:
+) -> list[FloatArr]:
     """Membrane projections.
 
     Create a $membrane_patch_size^2 array with $membrane_thickness central columns set to 1, other entries set to 0.
@@ -303,7 +296,7 @@ def membrane_projections(
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
         out_angles: list[npt.NDArray[np.float32]] = list(
             ex.map(
-                lambda k: convolve(img, k),
+                lambda k: convolve(img, k),  # type: ignore
                 all_kernels,
             )
         )
@@ -321,15 +314,15 @@ def membrane_projections(
 
 
 def singlescale_singlechannel_features(
-    img: npt.NDArray[np.float32],
+    img: FloatArr,
     byte_img: npt.NDArray[np.uint8],
     sigma: int,
     config: FeatureConfig,
-):
+) -> list[Arr]:
     assert len(img.shape) == 2, (
         f"img shape {img.shape} wrong, should be 2D/singlechannel"
     )
-    results: list[npt.NDArray[np.uint8 | np.float32]] = []
+    results: list[Arr] = []
     mult = 0.4 if config.add_weka_sigma_multiplier else 1
     gaussian_filtered = singlescale_gaussian(img, sigma, mult)
     if config.gaussian_blur:
@@ -363,14 +356,14 @@ def singlescale_singlechannel_features(
 
 
 def zero_scale_filters(
-    img: npt.NDArray[np.float32],
+    img: FloatArr,
     sobel_filter: bool = True,
     hessian_filter: bool = True,
     add_mod_trace: bool = True,
-) -> list[npt.NDArray[np.float32]]:
+) -> list[Arr]:
     """Weka *always* adds the original image, and if computing edgees and/or hessian,
     adds those for sigma=0. This function does that."""
-    out_filtered: list[npt.NDArray[np.float32]] = [img]
+    out_filtered: list[Arr] = [img]
     if sobel_filter:
         edges = singlescale_edges(img)
         out_filtered.append(edges)
@@ -384,12 +377,12 @@ def multiscale_features(
     raw_img: npt.NDArray[np.uint8],
     config: FeatureConfig,
     num_workers: int | None = None,
-) -> npt.NDArray[np.float16 | np.float32 | np.float64]:
+) -> FloatArr:
     byte_img = raw_img.astype(np.uint8)
-    converted_img: npt.NDArray[np.float32] = np.ascontiguousarray(
+    converted_img: FloatArr = np.ascontiguousarray(
         img_as_float32(raw_img)  # type: ignore
     )
-    features: list[npt.NDArray[np.float32]]
+    features: list[Arr]
     if config.add_zero_scale_features:
         features = zero_scale_filters(
             converted_img,
@@ -403,7 +396,7 @@ def multiscale_features(
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
         out_sigmas = list(
             ex.map(
-                lambda sigma: singlescale_singlechannel_features(
+                lambda sigma: singlescale_singlechannel_features(  # type: ignore
                     converted_img, raw_img, sigma, config
                 ),
                 config.sigmas,
@@ -414,9 +407,9 @@ def multiscale_features(
     features += list(multiscale_features)  # type: ignore
 
     if config.difference_of_gaussians:
-        intensities: list[npt.NDArray[np.float32]] = []
+        intensities: list[FloatArr] = []
         for i in range(len(config.sigmas)):
-            gaussian_blur_at_sigma: npt.NDArray[np.float32] = out_sigmas[i][0]  # type: ignore
+            gaussian_blur_at_sigma: FloatArr = out_sigmas[i][0]  # type: ignore
             intensities.append(gaussian_blur_at_sigma)
         dogs = difference_of_gaussians(intensities)
         features += dogs
@@ -434,9 +427,7 @@ def multiscale_features(
         bilateral_filtered = bilateral(byte_img)
         features += bilateral_filtered
 
-    features_np: npt.NDArray[np.float16 | np.float32 | np.float64] = np.stack(
-        features, axis=-1
-    )
+    features_np: Arr = np.stack(features, axis=-1)  # type: ignore
     if config.cast_to == "f16":
         features_np = features_np.astype(np.float16)
     elif config.cast_to == "f64":
