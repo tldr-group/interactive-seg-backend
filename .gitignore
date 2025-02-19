@@ -174,3 +174,4 @@ cython_debug/
 *bench.txt
 feature-stack.tif
 tests/out/*
+*.old
