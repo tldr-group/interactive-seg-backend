@@ -5,6 +5,7 @@ from interactive_seg_backend.classifiers import (
     RandomForest,
     Logistic,
     Linear,
+    XGBCPU,
 )
 
 from typing import Any
@@ -45,6 +46,8 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any]) -> Classi
         return Logistic(extra_args)
     elif model_type == "linear_regression":
         return Linear(extra_args)
+    elif model_type == "xgb":
+        return XGBCPU(extra_args)
     else:
         raise Exception("Not implemented!")
 
