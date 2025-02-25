@@ -1,5 +1,5 @@
-import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import RidgeClassifier, LogisticRegression
 
 from interactive_seg_backend.configs import Arr, UInt8Arr
 from .base import Classifier
@@ -23,5 +23,15 @@ class RandomForest(Classifier):
     def predict(self, features: Arr):
         return super().predict(features)
 
-    def save(self, out_path: str, as_skops: bool = False) -> None:
-        return super().save(out_path, as_skops)
+
+class Logistic(RandomForest):
+    def __init__(self, extra_args: dict[str, Any]) -> None:
+        self.model = LogisticRegression(**extra_args)
+
+
+class Linear(RandomForest):
+    def __init__(self, extra_args: dict[str, Any]) -> None:
+        self.model = RidgeClassifier(**extra_args)
+
+    def predict_proba(self, features_flat: Arr) -> Arr:
+        return self.model.decision_function(features_flat)
