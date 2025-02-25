@@ -16,5 +16,10 @@ def test_logistic(feature_stack: Arr, labels: UInt8Arr):
     e2e(feature_stack, labels, tc, True, "tests/out/0_seg_logistic.tif")
 
 
+def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr):
+    tc = TrainingConfig(feat_cfg, classifier="xgb")
+    e2e(feature_stack, labels, tc, True, "tests/out/0_seg_xgbcpus.tif")
+
+
 if __name__ == "__main__":
     pytest.main(args=["-k test_classifiers"])
