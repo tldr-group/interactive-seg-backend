@@ -41,30 +41,40 @@ def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
 MIOU_CUTOFF = 0.8
 
 
-def test_e2e(
-    feature_stack: Arr,
-    labels: UInt8Arr,
-    train_cfg: TrainingConfig,
-    out_fname: str = "tests/out/0_seg.tif",
+def e2e(
+    features: Arr,
+    label: UInt8Arr,
+    cfg: TrainingConfig,
+    save: bool = True,
+    fname: str = "tests/out/0_seg.tif",
 ):
-    fit, target = get_labelled_training_data_from_stack(feature_stack, labels)
+    fit, target = get_labelled_training_data_from_stack(features, label)
     fit, target = shuffle_sample_training_data(
-        fit, target, train_cfg.shuffle_data, train_cfg.n_samples
+        fit, target, cfg.shuffle_data, cfg.n_samples
     )
-    model = get_model(train_cfg.classifier, train_cfg.classifier_params)
+    model = get_model(cfg.classifier, cfg.classifier_params)
     model = train(model, fit, target, None)
-    pred = apply(model, feature_stack)
+    pred = apply(model, features)
     rh, rw = pred.shape
-    fh, fw, _ = feature_stack.shape
+    fh, fw, _ = features.shape
 
-    save_segmentation(pred, out_fname)
-
+    if save:
+        save_segmentation(pred, fname)
     assert rh == fh
     assert rw == fw
 
     ground_truth = load_labels("tests/data/0_ground_truth.tif")
     miou = class_avg_miou(pred, ground_truth)
     assert miou > MIOU_CUTOFF
+
+
+def test_e2e(
+    feature_stack: Arr,
+    labels: UInt8Arr,
+    train_cfg: TrainingConfig,
+    out_fname: str = "tests/out/0_seg.tif",
+):
+    e2e(feature_stack, labels, train_cfg, True, out_fname)
 
 
 if __name__ == "__main__":
