@@ -25,3 +25,8 @@ def feat_cfg() -> FeatureConfig:
 @pytest.fixture(scope="module")
 def feature_stack(image: Arr, feat_cfg: FeatureConfig) -> Arr:
     return multiscale_features(image, feat_cfg)
+
+
+@pytest.fixture(scope="module")
+def ground_truth() -> Arr:
+    return load_labels("tests/data/0_ground_truth.tif")

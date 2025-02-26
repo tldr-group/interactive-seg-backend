@@ -41,12 +41,15 @@ def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
 MIOU_CUTOFF = 0.8
 
 
-def e2e(
+def e2e_get_miou(
     features: Arr,
     label: UInt8Arr,
     cfg: TrainingConfig,
+    ground_truth: UInt8Arr,
     save: bool = True,
     fname: str = "tests/out/0_seg.tif",
+    run_checks: bool = True,
+    miou_cutoff: float = MIOU_CUTOFF,
 ):
     fit, target = get_labelled_training_data_from_stack(features, label)
     fit, target = shuffle_sample_training_data(
@@ -58,23 +61,28 @@ def e2e(
     rh, rw = pred.shape
     fh, fw, _ = features.shape
 
+    miou = class_avg_miou(pred, ground_truth)
+
     if save:
         save_segmentation(pred, fname)
-    assert rh == fh
-    assert rw == fw
 
-    ground_truth = load_labels("tests/data/0_ground_truth.tif")
-    miou = class_avg_miou(pred, ground_truth)
-    assert miou > MIOU_CUTOFF
+    if run_checks:
+        assert rh == fh
+        assert rw == fw
+
+        assert miou > miou_cutoff
+
+    return miou
 
 
 def test_e2e(
     feature_stack: Arr,
     labels: UInt8Arr,
     train_cfg: TrainingConfig,
+    ground_truth: UInt8Arr,
     out_fname: str = "tests/out/0_seg.tif",
 ):
-    e2e(feature_stack, labels, train_cfg, True, out_fname)
+    e2e_get_miou(feature_stack, labels, train_cfg, ground_truth, True, out_fname, True)
 
 
 if __name__ == "__main__":
