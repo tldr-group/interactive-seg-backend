@@ -28,4 +28,4 @@ def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 
 
 if __name__ == "__main__":
-    pytest.main(args=["-k test_classifiers"])
+    pytest.main(args=["-k test_classifiers", "-s"])

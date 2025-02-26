@@ -86,4 +86,4 @@ def test_e2e(
 
 
 if __name__ == "__main__":
-    pytest.main(args=["-k test_core"])
+    pytest.main(args=["-k test_core", "-s"])

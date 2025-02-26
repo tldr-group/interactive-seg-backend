@@ -42,4 +42,4 @@ def test_equalize() -> None:
 
 
 if __name__ == "__main__":
-    pytest.main(args=["-k test_processing"])
+    pytest.main(args=["-k test_processing", "-s"])

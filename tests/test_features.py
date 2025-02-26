@@ -326,4 +326,4 @@ class TestCPUWekaEquivalence:
 
 
 if __name__ == "__main__":
-    pytest.main(args=["-k test_features"])
+    pytest.main(args=["-k test_features", "-s"])
