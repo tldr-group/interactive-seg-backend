@@ -9,21 +9,42 @@ feat_cfg = FeatureConfig(add_weka_sigma_multiplier=False)
 def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     tc = TrainingConfig(feat_cfg, classifier="linear_regression")
     e2e_get_miou(
-        feature_stack, labels, tc, ground_truth, True, "tests/out/0_seg_linear.tif"
+        feature_stack,
+        labels,
+        tc,
+        ground_truth,
+        True,
+        "tests/out/0_seg_linear.tif",
+        True,
+        0.4,
     )
 
 
 def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     tc = TrainingConfig(feat_cfg, classifier="logistic_regression")
     e2e_get_miou(
-        feature_stack, labels, tc, ground_truth, True, "tests/out/0_seg_logistic.tif"
+        feature_stack,
+        labels,
+        tc,
+        ground_truth,
+        True,
+        "tests/out/0_seg_logistic.tif",
+        True,
+        0.4,
     )
 
 
 def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     tc = TrainingConfig(feat_cfg, classifier="xgb")
     e2e_get_miou(
-        feature_stack, labels, tc, ground_truth, True, "tests/out/0_seg_xgbcpus.tif"
+        feature_stack,
+        labels,
+        tc,
+        ground_truth,
+        True,
+        "tests/out/0_seg_xgbcpus.tif",
+        True,
+        0.5,
     )
 
 

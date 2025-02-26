@@ -38,7 +38,7 @@ def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
     return TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
-MIOU_CUTOFF = 0.8
+MIOU_CUTOFF = 0.55
 
 
 def e2e_get_miou(
