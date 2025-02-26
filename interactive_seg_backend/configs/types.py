@@ -15,12 +15,7 @@ IntArr: TypeAlias = (
     | npt.NDArray[np.int64]
 )
 Arr: TypeAlias = FloatArr | IntArr
-# FloatArr = TypeVar(
-#     "FloatArr",
-#     npt.NDArray[np.float16],
-#     npt.NDArray[np.float32],
-#     npt.NDArray[np.float64],
-# )
+
 Arrlike = TypeVar(
     "Arrlike",
     npt.NDArray[np.float16],
@@ -53,3 +48,5 @@ Postprocessing = Literal["modal_filter"]
 LabellingStrategy = Literal["sparse", "dense", "interfaces"]
 HITLStrategy = Literal["wrong", "uncertainty", "representative_weighted"]
 Rules = Literal["volume_fraction", "connectivity"]
+
+# TODO: define a feature stack dataclass? image h, w, list of features used to generate it, and save / load helpers (i.e as a paged tiff or .pt)

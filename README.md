@@ -7,7 +7,7 @@ Generic backend for interactive feature-based segmentation in python.
 - classifier(s)
 - applying: patched, 3D (+ average), all with memory consideration (caching)
 - (pre/post) processing
-- improvements: fixed vf, autocontext, rules?
+- improvements: fixed vf, autocontext, rules?, crf?
 
 ## Installation:
 
@@ -42,5 +42,5 @@ python -m cProfile -s tottime multiscale_classical_cpu.py > bench.txt
 
 Requires the pytest package (`pip install -e '.[test]'`)
 ```bash
-pytest
+pytest -s
 ```
