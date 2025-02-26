@@ -12,7 +12,7 @@ def preprocess(img_arr: Arr, preprocessing_operations: tuple[Preprocessing]) -> 
     if "blur" in preprocessing_operations:
         img_arr = gaussian(img_arr, 1)
     if "denoise" in preprocessing_operations:
-        img_arr = denoise_wavelet(img_arr, sigma=0.12, mode="BayesShrink")
+        img_arr = denoise_wavelet(img_arr, sigma=None, method="BayesShrink")
     if "equalize" in preprocessing_operations:
         img_arr = equalize_adapthist(img_arr)
     return img_arr
