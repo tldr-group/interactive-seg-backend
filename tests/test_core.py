@@ -50,7 +50,7 @@ def e2e_get_miou(
     fname: str = "tests/out/0_seg.tif",
     run_checks: bool = True,
     miou_cutoff: float = MIOU_CUTOFF,
-):
+) -> tuple[float, UInt8Arr]:
     fit, target = get_labelled_training_data_from_stack(features, label)
     fit, target = shuffle_sample_training_data(
         fit, target, cfg.shuffle_data, cfg.n_samples
@@ -72,7 +72,7 @@ def e2e_get_miou(
 
         assert miou > miou_cutoff
 
-    return miou
+    return miou, pred
 
 
 def test_e2e(
