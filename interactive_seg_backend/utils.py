@@ -9,8 +9,8 @@ def class_avg_mious(prediction: UInt8Arr, ground_truth: UInt8Arr) -> list[float]
     for v in vals:
         mask_pred = np.where(prediction == v, 1, 0)
         mask_gt = np.where(ground_truth == v, 1, 0)
-        overlap = mask_pred * mask_gt
-        union = mask_pred & mask_gt
+        overlap = np.logical_and(mask_pred, mask_gt)
+        union = np.logical_or(mask_pred, mask_gt)
         iou = float(np.sum(overlap) / np.sum(union))
         ious.append(iou)
     return ious
