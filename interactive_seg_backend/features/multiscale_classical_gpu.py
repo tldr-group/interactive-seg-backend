@@ -12,7 +12,20 @@ from kornia.filters import (
 
 from time import time
 
-from interactive_seg_backend.configs import FeatureConfig
+from interactive_seg_backend.configs import FeatureConfig, Arr
+
+
+def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
+    ndims = len(arr.shape)
+    if ndims == 2:
+        arr = np.expand_dims(arr, (0, 1))  # (H, W) -> (1, 1, H, W)
+    else:
+        channel_idx = np.argmin(arr.shape)
+        if channel_idx == ndims - 1:  # (H, W, C) -> (C, H, W)
+            arr = np.transpose(arr, (-1, 0, 1))
+        arr = np.expand_dims(arr, (0))  # (C, H, W) -> (1, 1, H, W)
+    tensor = torch.tensor(arr, device=device)
+    return tensor
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
@@ -189,13 +202,14 @@ def bilateral(img: torch.Tensor) -> torch.Tensor:
     return torch.cat(bilaterals, dim=1)
 
 
-def difference_of_gaussians(gaussian_blurs: torch.Tensor) -> torch.Tensor:
+def difference_of_gaussians(
+    gaussian_blurs: torch.Tensor, N_sigmas: int
+) -> torch.Tensor:
     diff_list: list[torch.Tensor] = []
-    N_blurs = gaussian_blurs.shape[1]
-    for i in range(N_blurs):
-        sigma_1 = gaussian_blurs[0:1, i : i + 1]
+    for i in range(N_sigmas):
+        sigma_1 = gaussian_blurs[0:1, i::N_sigmas]
         for j in range(i):
-            sigma_2 = gaussian_blurs[0:1, j : j + 1]
+            sigma_2 = gaussian_blurs[0:1, j::N_sigmas]
             diff_list.append(sigma_2 - sigma_1)
     dogs = torch.cat(diff_list, dim=1)
     return dogs
@@ -230,6 +244,8 @@ def get_membrane_proj_kernel(
 
 def membrane_projections(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
     projs = convolve(img, kernel, False)
+    print(img.shape, kernel.shape, projs.shape)
+    # go over three channels separately instead
     sum_proj = torch.sum(projs, dim=1)
     mean_proj = torch.mean(projs, dim=1)
     std_proj = torch.std(projs, dim=1)
@@ -298,9 +314,10 @@ def multiscale_features_gpu(
     else:
         features = []
 
+    N_sigmas = len(config.sigmas)
     for i, sigma in enumerate(config.sigmas):
         s = int(sigma)
-        blurred = gaussian_blurs[0:1, i : i + 1]
+        blurred = gaussian_blurs[0:1, i::N_sigmas]
         edges = convolve(blurred, sobel_kernel, True)
         if config.gaussian_blur:
             features.append(blurred)
@@ -324,7 +341,7 @@ def multiscale_features_gpu(
             features.append(singlescale_laplacian(blurred, s))
 
     if config.difference_of_gaussians:
-        features.append(difference_of_gaussians(gaussian_blurs))
+        features.append(difference_of_gaussians(gaussian_blurs, N_sigmas))
     if config.membrane_projections:
         projections = membrane_projections(converted_img, membrane_kernel)
         features.append(projections)
@@ -351,12 +368,17 @@ if __name__ == "__main__":
     cfg = FeatureConfig(
         name="default",
         cast_to="f16",
+        add_zero_scale_features=True,
+        hessian_filter=True,
+        sobel_filter=True,
+        membrane_projections=True,
+        difference_of_gaussians=True,
         mean=True,
         minimum=True,
         maximum=True,
         use_gpu=True,
     )
-    n_ch = 1
+    n_ch = 3
     img = torch.rand(
         (1, n_ch, 400, 400), device=device, dtype=torch.float16, requires_grad=False
     )
@@ -368,3 +390,9 @@ if __name__ == "__main__":
     torch.cuda.synchronize()
     end = time()
     print(f"{feats.shape} in {end - start:.4f}s")
+
+    img_l = img[0:1, 0:1, :, :]
+
+    feats_l = multiscale_features_gpu(img_l, cfg, torch.float16)
+    feats_l_np = feats_l.cpu().numpy()
+    print(f"{feats_l_np.shape}")
