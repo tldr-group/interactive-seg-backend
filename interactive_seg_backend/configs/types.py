@@ -18,12 +18,11 @@ Arr: TypeAlias = FloatArr | IntArr
 
 Arrlike = TypeVar(
     "Arrlike",
-    npt.NDArray[np.float16],
-    npt.NDArray[np.float32],
-    npt.NDArray[np.float64],
-    npt.NDArray[np.uint8],
+    Arr,
     Tensor,
 )
+
+UInt8Arrlike = TypeVar("UInt8Arrlike", npt.NDArray[np.uint8], Tensor)
 
 PossibleFeatures = Literal[
     "gaussian_blur",

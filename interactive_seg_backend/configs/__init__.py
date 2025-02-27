@@ -6,6 +6,7 @@ __all__ = [
     "IntArr",
     "Arr",
     "Arrlike",
+    "UInt8Arrlike",
 ]
 from .config import FeatureConfig, TrainingConfig
-from .types import FloatArr, UInt8Arr, IntArr, Arr, Arrlike
+from .types import FloatArr, UInt8Arr, IntArr, Arr, Arrlike, UInt8Arrlike
