@@ -21,7 +21,9 @@ def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 
 
 def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
-    tc = TrainingConfig(feat_cfg, classifier="logistic_regression")
+    tc = TrainingConfig(
+        feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000}
+    )
     e2e_get_miou(
         feature_stack,
         labels,
