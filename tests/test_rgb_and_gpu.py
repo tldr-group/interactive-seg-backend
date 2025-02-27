@@ -9,13 +9,31 @@ from interactive_seg_backend.features import (
     prepare_for_gpu,
     multiscale_features_gpu,
 )
+from interactive_seg_backend.core import (
+    get_model,
+    get_labelled_training_data_from_stack,
+    shuffle_sample_training_data,
+)
+
+from test_core import e2e_get_miou
 
 
 img = imread("tests/data/rgb.tif")
 
 feat_cfg = FeatureConfig(
-    add_weka_sigma_multiplier=True, max_sigma=8, difference_of_gaussians=False
+    add_weka_sigma_multiplier=True,
+    max_sigma=8,
+    difference_of_gaussians=False,
+    use_gpu=True,
 )
+
+
+@pytest.fixture
+def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
+    # extra_args = {"n_estimators": 200, "max_features": 2, "max_depth": None}
+    return TrainingConfig(
+        feat_cfg, classifier="xgb", n_samples=10000, classifier_params={}, use_gpu=True
+    )
 
 
 def test_rgb() -> None:
@@ -46,5 +64,15 @@ def test_gpu_featurise() -> None:
     assert feats_greyscale.shape[-1] == feats_rgb.shape[-1] // 3
 
 
+def test_gpu_e2e(
+    image: Arr, labels: UInt8Arr, train_cfg: TrainingConfig, ground_truth: UInt8Arr
+) -> None:
+    img_tensor = prepare_for_gpu(image)
+    feats = multiscale_features_gpu(img_tensor, feat_cfg, torch.float32)
+    e2e_get_miou(
+        feats, labels, train_cfg, ground_truth, fname="tests/out/0_seg_gpu.tif"
+    )
+
+
 if __name__ == "__main__":
-    pytest.main(args=["-k test_rgb_gpu", "-s"])
+    pytest.main(args=["-k test_rgb_and_gpu", "-s"])
