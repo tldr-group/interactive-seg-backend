@@ -4,8 +4,6 @@ import numpy as np
 import torch
 
 from interactive_seg_backend.configs import Arr, UInt8Arr, FeatureConfig, TrainingConfig
-from interactive_seg_backend.file_handling import (
-)
 from interactive_seg_backend.features import (
     multiscale_features,
     prepare_for_gpu,
