@@ -219,6 +219,8 @@ class TrainingConfig:
     HITL_strategy: HITLStrategy = "wrong"
     rules: tuple[Rules] | None = None
 
+    use_gpu: bool = False
+
     def __repr__(self) -> str:
         name = self.feature_config.name
         desc = self.feature_config.desc

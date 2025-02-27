@@ -12,6 +12,7 @@ from interactive_seg_backend.classifiers import (
     Logistic,
     Linear,
     XGBCPU,
+    XGBGPU,
 )
 
 from typing import Any
@@ -46,15 +47,19 @@ def shuffle_sample_training_data(
         return fit[all_inds], target[all_inds]
 
 
-def get_model(model_type: ClassifierNames, extra_args: dict[str, Any]) -> Classifier:
+def get_model(
+    model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: bool = False
+) -> Classifier:
     if model_type == "random_forest":
         return RandomForest(extra_args)
     elif model_type == "logistic_regression":
         return Logistic(extra_args)
     elif model_type == "linear_regression":
         return Linear(extra_args)
-    elif model_type == "xgb":
+    elif model_type == "xgb" and to_gpu is False:
         return XGBCPU(extra_args)
+    elif model_type == "xgb" and to_gpu is True:
+        return XGBGPU(extra_args)
     else:
         raise Exception("Not implemented!")
 
