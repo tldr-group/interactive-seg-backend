@@ -373,8 +373,8 @@ def zero_scale_filters(
     return out_filtered
 
 
-def multiscale_features(
-    raw_img: npt.NDArray[np.uint8],
+def multiscale_singlechannel(
+    raw_img: Arr,
     config: FeatureConfig,
     num_workers: int | None = None,
 ) -> FloatArr:
@@ -435,6 +435,40 @@ def multiscale_features(
     else:
         features_np = features_np.astype(np.float32)
     return features_np
+
+
+def multiscale_features(
+    raw_img: Arr,
+    config: FeatureConfig,
+    num_workers: int | None = None,
+) -> FloatArr:
+    out: list[FloatArr] = []
+    n_dims = len(raw_img.shape)
+    # (H, W)
+    if n_dims == 2:
+        return multiscale_singlechannel(raw_img, config, num_workers)
+    if n_dims == 4:
+        raise Exception(f"Img shape: {raw_img.shape} - 4D data is not supported!")
+
+    channel_idx = np.argmin(raw_img.shape)
+    n_ch = raw_img.shape[channel_idx]
+    # (1, H, W) or (H, W, 1)
+    if n_ch == 1 and channel_idx == 0:
+        return multiscale_singlechannel(raw_img[0], config, num_workers)
+    elif n_ch == 1 and channel_idx == -1:
+        return multiscale_singlechannel(raw_img[:, :, 0], config, num_workers)
+
+    # (C, H, W) -> (H, W, C)
+    if n_ch == 3 and channel_idx == 0:
+        correct_channel_img = np.transpose(raw_img, (1, 2, 0))
+    else:
+        correct_channel_img = raw_img
+
+    for channel in range(n_ch):
+        slice_arr = correct_channel_img[:, :, channel]
+        slice_feats = multiscale_singlechannel(slice_arr, config, num_workers)
+        out.append(slice_feats)
+    return np.concatenate(out, axis=-1)
 
 
 if __name__ == "__main__":
