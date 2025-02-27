@@ -242,20 +242,45 @@ def get_membrane_proj_kernel(
     return filters
 
 
-def membrane_projections(img: torch.Tensor, kernel: torch.Tensor) -> torch.Tensor:
+def membrane_projections(
+    img: torch.Tensor, kernel: torch.Tensor, N_ch: int
+) -> torch.Tensor:
+    # TODO: most other gpu filters work with N-channel imgs s.t slicing the output stack
+    # by every N you'll get the stack for the Nth channel - this does not work like that
     projs = convolve(img, kernel, False)
-    print(img.shape, kernel.shape, projs.shape)
-    # go over three channels separately instead
-    sum_proj = torch.sum(projs, dim=1)
-    mean_proj = torch.mean(projs, dim=1)
-    std_proj = torch.std(projs, dim=1)
-    median_proj, _ = torch.median(projs, dim=1)
-    max_proj = torch.amax(projs, dim=1)
-    min_proj = torch.amin(projs, dim=1)
 
-    return torch.stack(
-        (mean_proj, max_proj, min_proj, sum_proj, std_proj, median_proj), dim=1
-    )
+    projs_per_ch = projs.shape[1] // N_ch
+
+    projections_out: list[torch.Tensor] = []
+    for i in range(N_ch):
+        sum_proj = torch.sum(
+            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
+        )
+        mean_proj = torch.mean(
+            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
+        )
+        std_proj = torch.std(
+            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
+        )
+        median_proj, _ = torch.median(
+            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
+        )
+        max_proj = torch.amax(
+            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
+        )
+        min_proj = torch.amin(
+            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
+        )
+        projections_out += [
+            mean_proj,
+            max_proj,
+            min_proj,
+            sum_proj,
+            std_proj,
+            median_proj,
+        ]
+
+    return torch.stack(projections_out, dim=1)
 
 
 def zero_scale_filters(
@@ -343,7 +368,7 @@ def multiscale_features_gpu(
     if config.difference_of_gaussians:
         features.append(difference_of_gaussians(gaussian_blurs, N_sigmas))
     if config.membrane_projections:
-        projections = membrane_projections(converted_img, membrane_kernel)
+        projections = membrane_projections(converted_img, membrane_kernel, C)
         features.append(projections)
     if config.bilateral:
         features.append(bilateral(raw_img))
