@@ -1,5 +1,11 @@
 import numpy as np
-from interactive_seg_backend.configs.types import Arr, UInt8Arr, ClassifierNames
+from interactive_seg_backend.configs.types import (
+    Arr,
+    UInt8Arr,
+    Arrlike,
+    UInt8Arrlike,
+    ClassifierNames,
+)
 from interactive_seg_backend.classifiers import (
     Classifier,
     RandomForest,
@@ -12,11 +18,12 @@ from typing import Any
 
 
 def get_labelled_training_data_from_stack(
-    feature_stack: Arr, labels: UInt8Arr
-) -> tuple[Arr, UInt8Arr]:
+    feature_stack: Arrlike, labels: UInt8Arr
+) -> tuple[Arrlike, UInt8Arr]:
     h, w, n_feats = feature_stack.shape
     flat_labels = labels.reshape((h * w))
     flat_features = feature_stack.reshape((h * w, n_feats))
+
     labelled_mask = np.nonzero(flat_labels)
 
     fit_data = flat_features[labelled_mask[0], :]
@@ -26,8 +33,8 @@ def get_labelled_training_data_from_stack(
 
 
 def shuffle_sample_training_data(
-    fit: Arr, target: UInt8Arr, shuffle: bool = True, sample_n: int = -1
-) -> tuple[Arr, UInt8Arr]:
+    fit: Arrlike, target: UInt8Arrlike, shuffle: bool = True, sample_n: int = -1
+) -> tuple[Arrlike, UInt8Arrlike]:
     n_samples = target.shape[0]
     all_inds = np.arange(0, n_samples, 1)
     if shuffle:
@@ -53,7 +60,7 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any]) -> Classi
 
 
 def train(
-    model: Classifier, fit: Arr, target: UInt8Arr, sample_weight: Arr | None
+    model: Classifier, fit: Arrlike, target: UInt8Arr, sample_weight: Arr | None
 ) -> Classifier:
     if sample_weight is None:
         model.fit(fit, target)
@@ -64,7 +71,7 @@ def train(
 
 
 def apply(
-    model: Classifier, features: Arr, h: int | None = None, w: int | None = None
+    model: Classifier, features: Arrlike, h: int | None = None, w: int | None = None
 ) -> UInt8Arr:
     is_2D = len(features.shape) == 3
     if is_2D:

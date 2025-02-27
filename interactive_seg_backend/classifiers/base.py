@@ -5,7 +5,7 @@ from skops.io import load as skload, dump as skdump
 
 from typing import Any
 
-from interactive_seg_backend.configs import Arr, UInt8Arr
+from interactive_seg_backend.configs import Arr, UInt8Arr, Arrlike
 
 
 class Classifier(object):
@@ -13,15 +13,18 @@ class Classifier(object):
         pass
 
     def fit(
-        self, train_data: Arr, target_data: UInt8Arr, sample_weights: Arr | None = None
+        self,
+        train_data: Arrlike,
+        target_data: UInt8Arr,
+        sample_weights: Arr | None = None,
     ):
         return self
 
-    def predict_proba(self, features_flat: Arr) -> Arr:
+    def predict_proba(self, features_flat: Arrlike) -> Arr:
         raise NotImplementedError
 
-    # TODO: make these polymorphic?
-    def predict(self, features: Arr) -> UInt8Arr:
+    # Assuming all GPU models return their probs as numpy arr this frame should work
+    def predict(self, features: Arrlike) -> UInt8Arr:
         h, w, c = features.shape
         features_flat = features.reshape((h * w, c))
         probs = self.predict_proba(features_flat)
