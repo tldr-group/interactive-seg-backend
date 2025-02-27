@@ -9,11 +9,6 @@ from interactive_seg_backend.features import (
     prepare_for_gpu,
     multiscale_features_gpu,
 )
-from interactive_seg_backend.core import (
-    get_model,
-    get_labelled_training_data_from_stack,
-    shuffle_sample_training_data,
-)
 
 from test_core import e2e_get_miou
 
