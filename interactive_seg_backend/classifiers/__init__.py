@@ -5,7 +5,8 @@ __all__ = [
     "Logistic",
     "Linear",
     "XGBCPU",
+    "XGBGPU",
 ]
 from .base import Classifier, load_classifier
 from .sklearn_based import RandomForest, Logistic, Linear
-from .xgb import XGBCPU
+from .xgb import XGBCPU, XGBGPU
