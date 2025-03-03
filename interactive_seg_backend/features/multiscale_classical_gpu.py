@@ -12,7 +12,7 @@ from kornia.filters import (
 
 from time import time
 
-from interactive_seg_backend.configs import FeatureConfig, Arr
+from interactive_seg_backend.configs import FeatureConfig, Arr, Arrlike
 
 
 def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
@@ -26,6 +26,13 @@ def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
         arr = np.expand_dims(arr, (0))  # (C, H, W) -> (1, 1, H, W)
     tensor = torch.tensor(arr, device=device)
     return tensor
+
+
+def concat_feats(arr1: Arrlike, arr2: Arrlike) -> Arrlike:
+    if isinstance(arr1, np.ndarray):
+        return np.concatenate((arr1, arr2), axis=-1)
+    else:
+        return torch.concatenate((arr1, arr2), dim=-1)
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
