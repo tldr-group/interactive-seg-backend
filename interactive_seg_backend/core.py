@@ -1,4 +1,10 @@
 import numpy as np
+from interactive_seg_backend.configs.config import FeatureConfig, TrainingConfig
+from interactive_seg_backend.features import (
+    multiscale_features,
+    multiscale_features_gpu,
+    prepare_for_gpu,
+)
 from interactive_seg_backend.configs.types import (
     Arr,
     UInt8Arr,
@@ -77,7 +83,7 @@ def train(
 
 def apply(
     model: Classifier, features: Arrlike, h: int | None = None, w: int | None = None
-) -> UInt8Arr:
+) -> tuple[UInt8Arr, Arr]:
     is_2D = len(features.shape) == 3
     if is_2D:
         h, w, n_feats = features.shape
@@ -88,4 +94,30 @@ def apply(
         flat_features = features
     probs: Arr = model.predict_proba(flat_features)
     classes = np.argmax(probs, axis=-1).astype(np.uint8)
-    return classes.reshape((h, w))
+    return classes.reshape((h, w)), probs.reshape((h, w, -1))
+
+
+# TODO: once AC working, split into _featurise and featurise, the latter having an option to AC featurise
+# if set by cfg, and if not jut calls _featurise
+def featurise(image: Arr, feature_cfg: FeatureConfig, use_gpu: bool = False) -> Arrlike:
+    if use_gpu:
+        tensor = prepare_for_gpu(image)
+        feats = multiscale_features_gpu(tensor, feature_cfg, tensor.dtype)
+    else:
+        feats = multiscale_features(image, feature_cfg)
+    return feats
+
+
+def train_and_apply(
+    features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig
+) -> tuple[UInt8Arr, Arr, Classifier]:
+    fit, target = get_labelled_training_data_from_stack(features, labels)
+    fit, target = shuffle_sample_training_data(
+        fit, target, train_cfg.shuffle_data, train_cfg.n_samples
+    )
+    model = get_model(
+        train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu
+    )
+    model = train(model, fit, target, None)
+    pred, probs = apply(model, features)
+    return pred, probs, model
