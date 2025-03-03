@@ -18,6 +18,7 @@ Arr: TypeAlias = FloatArr | IntArr
 
 Arrlike = TypeVar(
     "Arrlike",
+    FloatArr,
     Arr,
     Tensor,
 )
@@ -46,6 +47,9 @@ Preprocessing = Literal["denoise", "equalize", "blur"]
 Postprocessing = Literal["modal_filter"]
 LabellingStrategy = Literal["sparse", "dense", "interfaces"]
 HITLStrategy = Literal["wrong", "uncertainty", "representative_weighted"]
-Rules = Literal["volume_fraction", "connectivity"]
+Extensions = Literal[
+    "autocontext_original", "autocontext_ilastik", "rules_vf", "rules_connectivity"
+]
+Rules = Literal["vf", "connectivity"]
 
 # TODO: define a feature stack dataclass? image h, w, list of features used to generate it, and save / load helpers (i.e as a paged tiff or .pt)
