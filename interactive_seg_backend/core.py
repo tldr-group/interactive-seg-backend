@@ -1,5 +1,6 @@
 import numpy as np
 from interactive_seg_backend.configs.config import FeatureConfig, TrainingConfig
+from interactive_seg_backend.file_handling import load_featurestack
 from interactive_seg_backend.features import (
     multiscale_features,
     multiscale_features_gpu,
@@ -21,7 +22,35 @@ from interactive_seg_backend.classifiers import (
     XGBGPU,
 )
 
-from typing import Any
+from typing import Any, cast
+
+
+def get_training_data(
+    feature_stacks: list[Arrlike] | list[str], labels: list[UInt8Arr]
+) -> tuple[Arrlike, UInt8Arr]:
+    assert len(feature_stacks) > 0
+    assert len(feature_stacks) == len(labels)
+
+    def _get_stack(stack: Arrlike | str) -> Arrlike:
+        _stack: Arrlike
+        if type(stack) is str:
+            _stack = load_featurestack(stack)
+        else:
+            _stack = cast(Arrlike, stack)
+        return _stack
+
+    init_stack: Arrlike
+    init_stack, init_labels = _get_stack(feature_stacks[0]), labels[0]
+
+    all_fit_data, all_target_data = get_labelled_training_data_from_stack(
+        init_stack, init_labels
+    )
+    for stack, label in zip(feature_stacks[1:], labels[1:]):
+        _stack = _get_stack(stack)
+        fit, target = get_labelled_training_data_from_stack(_stack, label)
+        all_fit_data = np.concatenate((all_fit_data, fit), axis=0)
+        all_target_data = np.concatenate((all_target_data, target), axis=0)
+    return all_fit_data, all_target_data
 
 
 def get_labelled_training_data_from_stack(

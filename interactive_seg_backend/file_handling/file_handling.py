@@ -4,23 +4,38 @@ from PIL import Image
 from tifffile import imread, imwrite, COMPRESSION
 from os.path import exists
 
-from interactive_seg_backend.configs import Arr
+from typing import cast
+
+from interactive_seg_backend.configs import Arr, Arrlike
 
 
 def read_file_get_arr(path: str) -> Arr:
     if not exists(path):
         raise FileNotFoundError
 
-    file_ext = path.split(".")[-1]
-    if file_ext in ("png", "PNG", "jpg", "JPG", "JPEG", "jpeg"):
+    file_ext = path.split(".")[-1].lower()
+    if file_ext in ("png", "jpg", "jpeg"):
         img = Image.open(path)
         arr = np.array(img)
-    elif file_ext in ("tif", "tiff", "TIF", "TIFF"):
+    elif file_ext in ("tif", "tiff"):
         arr = imread(path)
     else:
         raise Exception(f"filetype '.{file_ext}' not supported!")
 
     return arr
+
+
+def load_featurestack(path: str) -> Arrlike:
+    file_ext = path.split(".")[-1].lower()
+    stack: Arrlike
+    if file_ext in ("tif", "tiff"):
+        _stack = imread(path)
+        stack = cast(Arrlike, _stack)
+    elif file_ext in (".npy", ".npz"):
+        stack = np.load(path)
+    else:
+        raise Exception(f"filetype '.{file_ext}' not supported!")
+    return stack
 
 
 def rescale_labels_to_greyscale(
