@@ -1,6 +1,6 @@
 import numpy as np
 from interactive_seg_backend.configs.config import FeatureConfig, TrainingConfig
-from interactive_seg_backend.file_handling import load_featurestack
+from interactive_seg_backend.file_handling import load_featurestack, save_featurestack
 from interactive_seg_backend.features import (
     multiscale_features,
     multiscale_features_gpu,
@@ -28,6 +28,7 @@ from typing import Any, cast
 def get_training_data(
     feature_stacks: list[Arrlike] | list[str], labels: list[UInt8Arr]
 ) -> tuple[Arrlike, UInt8Arr]:
+    # support for handling stacks from filepaths s.t only one stack in memory at once
     assert len(feature_stacks) > 0
     assert len(feature_stacks) == len(labels)
 
@@ -128,12 +129,18 @@ def apply(
 
 # TODO: once AC working, split into _featurise and featurise, the latter having an option to AC featurise
 # if set by cfg, and if not jut calls _featurise
-def featurise(image: Arr, feature_cfg: FeatureConfig, use_gpu: bool = False) -> Arrlike:
+# TODO: add in support for custom (arbritatry) featurise functions in here
+def featurise(
+    image: Arr, feature_cfg: FeatureConfig, use_gpu: bool = False, save_path: str = ""
+) -> Arrlike:
     if use_gpu:
         tensor = prepare_for_gpu(image)
         feats = multiscale_features_gpu(tensor, feature_cfg, tensor.dtype)
     else:
         feats = multiscale_features(image, feature_cfg)
+
+    if save_path != "":
+        save_featurestack(feats, save_path, ".npy")
     return feats
 
 

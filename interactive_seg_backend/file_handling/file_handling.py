@@ -4,7 +4,7 @@ from PIL import Image
 from tifffile import imread, imwrite, COMPRESSION
 from os.path import exists
 
-from typing import cast
+from typing import cast, Literal
 
 from interactive_seg_backend.configs import Arr, Arrlike
 
@@ -36,6 +36,20 @@ def load_featurestack(path: str) -> Arrlike:
     else:
         raise Exception(f"filetype '.{file_ext}' not supported!")
     return stack
+
+
+def save_featurestack(
+    arr: Arrlike, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]
+) -> None:
+    file_ext = path.split(".")[-1].lower()
+    if save_types == ".npy":
+        np.save(path, arr)
+    elif save_types == ".npz":
+        np.savez_compressed(path, arr)
+    elif save_types == ".tif":
+        imwrite(path, arr)
+    else:
+        raise Exception(f"filetype '.{file_ext}' not supported!")
 
 
 def rescale_labels_to_greyscale(
