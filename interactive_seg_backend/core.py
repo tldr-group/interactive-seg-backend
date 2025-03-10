@@ -1,5 +1,6 @@
 import numpy as np
 from interactive_seg_backend.configs.config import FeatureConfig, TrainingConfig
+
 from interactive_seg_backend.file_handling import load_featurestack, save_featurestack
 from interactive_seg_backend.features import (
     multiscale_features,
@@ -22,7 +23,34 @@ from interactive_seg_backend.classifiers import (
     XGBGPU,
 )
 
+from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRFParams
+from interactive_seg_backend.processing import preprocess
+from interactive_seg_backend.processing.postprocess import modal_filter
+
 from typing import Any, cast
+
+
+# TODO: add in support for custom (arbritatry) featurise functions in here
+def featurise(
+    image: Arr,
+    training_cfg: TrainingConfig,
+    use_gpu: bool = False,
+    save_path: str = "",
+) -> Arrlike:
+    feature_cfg = training_cfg.feature_config
+
+    if training_cfg.preprocessing is not None:
+        image = preprocess(image, training_cfg.preprocessing)
+
+    if use_gpu:
+        tensor = prepare_for_gpu(image)
+        feats = multiscale_features_gpu(tensor, feature_cfg, tensor.dtype)
+    else:
+        feats = multiscale_features(image, feature_cfg)
+
+    if save_path != "":
+        save_featurestack(feats, save_path, ".npy")
+    return feats
 
 
 def get_training_data(
@@ -112,7 +140,12 @@ def train(
 
 
 def apply(
-    model: Classifier, features: Arrlike, h: int | None = None, w: int | None = None
+    model: Classifier,
+    features: Arrlike,
+    training_cfg: TrainingConfig,
+    h: int | None = None,
+    w: int | None = None,
+    image: np.ndarray | None = None,
 ) -> tuple[UInt8Arr, Arr]:
     is_2D = len(features.shape) == 3
     if is_2D:
@@ -123,25 +156,21 @@ def apply(
         assert w is not None
         flat_features = features
     probs: Arr = model.predict_proba(flat_features)
+    probs_2D = probs.reshape((h, w, -1))
+    _, _, n_classes = probs_2D.shape
+
     classes = np.argmax(probs, axis=-1).astype(np.uint8)
-    return classes.reshape((h, w)), probs.reshape((h, w, -1))
+    seg = classes.reshape((h, w))
 
+    if training_cfg.CRF:
+        assert image is not None, "Need Image to do CRF"
+        params = CRFParams()
+        seg = do_crf_from_probabilites(probs_2D, image, n_classes, params)
 
-# TODO: once AC working, split into _featurise and featurise, the latter having an option to AC featurise
-# if set by cfg, and if not jut calls _featurise
-# TODO: add in support for custom (arbritatry) featurise functions in here
-def featurise(
-    image: Arr, feature_cfg: FeatureConfig, use_gpu: bool = False, save_path: str = ""
-) -> Arrlike:
-    if use_gpu:
-        tensor = prepare_for_gpu(image)
-        feats = multiscale_features_gpu(tensor, feature_cfg, tensor.dtype)
-    else:
-        feats = multiscale_features(image, feature_cfg)
+    if training_cfg.modal_filter:
+        seg = modal_filter(seg, training_cfg.modal_filter_k)
 
-    if save_path != "":
-        save_featurestack(feats, save_path, ".npy")
-    return feats
+    return seg, probs_2D
 
 
 def train_and_apply(

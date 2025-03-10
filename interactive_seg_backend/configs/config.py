@@ -211,10 +211,13 @@ class TrainingConfig:
     n_samples: int = -1
 
     preprocessing: tuple[Preprocessing] | None = None
-    postprocessing: tuple[Postprocessing] | None = None
+
+    modal_filter: bool = False
+    modal_filter_k: int = 2
 
     autocontext: bool = False
     CRF: bool = False
+
     HITL: bool = False
     HITL_strategy: HITLStrategy = "wrong"
     rules: tuple[Rules] | None = None
