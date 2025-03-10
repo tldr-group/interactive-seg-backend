@@ -62,7 +62,7 @@ def e2e_get_miou(
     )
     model = get_model(cfg.classifier, cfg.classifier_params, cfg.use_gpu)
     model = train(model, fit, target, None)
-    pred = apply(model, features)
+    pred, _ = apply(model, features, cfg)
     rh, rw = pred.shape
     fh, fw, _ = features.shape
 
