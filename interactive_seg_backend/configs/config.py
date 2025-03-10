@@ -231,6 +231,13 @@ class TrainingConfig:
         )
         return out_str
 
+    def __post_init__(self) -> None:
+        if self.balance_classes and self.classifier in (
+            "random_forest",
+            "logistic_regression",
+        ):
+            self.classifier_params["class_weight"] = "balanced"
+
 
 if __name__ == "__main__":
     c = FeatureConfig(
