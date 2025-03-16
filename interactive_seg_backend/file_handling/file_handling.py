@@ -31,7 +31,7 @@ def load_featurestack(path: str) -> Arrlike:
     if file_ext in ("tif", "tiff"):
         _stack = imread(path)
         stack = cast(Arrlike, _stack)
-    elif file_ext in (".npy", ".npz"):
+    elif file_ext in ("npy", "npz"):
         stack = np.load(path)
     else:
         raise Exception(f"filetype '.{file_ext}' not supported!")
@@ -111,10 +111,11 @@ def save_segmentation(
     out_path: str,
     rescale: bool = True,
     as_png: bool = False,
+    offset: int = 1,
 ) -> None:
     to_save: npt.NDArray[np.uint8]
     if rescale:
-        to_save = rescale_labels_to_greyscale(arr)
+        to_save = rescale_labels_to_greyscale(arr, offset=offset)
     else:
         to_save = arr
 
@@ -123,3 +124,12 @@ def save_segmentation(
         img.save(out_path)
     else:
         imwrite(out_path, to_save, compression=COMPRESSION.DEFLATE)
+
+
+def save_labels(
+    arr: npt.NDArray[np.uint8],
+    out_path: str,
+    rescale: bool = True,
+    as_png: bool = False,
+) -> None:
+    save_segmentation(arr, out_path, rescale, as_png, offset=0)
