@@ -8,7 +8,9 @@ from interactive_seg_backend.configs.types import (
 )
 
 
-def preprocess(img_arr: Arr, preprocessing_operations: tuple[Preprocessing]) -> Arr:
+def preprocess(
+    img_arr: Arr, preprocessing_operations: tuple[Preprocessing, ...]
+) -> Arr:
     if "blur" in preprocessing_operations:
         img_arr = gaussian(img_arr, 1)
     if "denoise" in preprocessing_operations:
