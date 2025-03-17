@@ -1,5 +1,9 @@
 import numpy as np
-from interactive_seg_backend.configs.config import FeatureConfig, Preprocessing
+from interactive_seg_backend.configs.config import (
+    FeatureConfig,
+    TrainingConfig,
+    Preprocessing,
+)
 
 from interactive_seg_backend.file_handling import load_featurestack
 from interactive_seg_backend.features import (
@@ -71,9 +75,9 @@ def get_training_data(
         init_stack, init_labels
     )
     for stack, label in zip(feature_stacks[1:], labels[1:]):
-        _stack = _get_stack(stack)
+        _stack = _get_stack(stack)  # type: ignore
         fit, target = get_labelled_training_data_from_stack(_stack, label)
-        all_fit_data = np.concatenate((all_fit_data, fit), axis=0)
+        all_fit_data = np.concatenate((all_fit_data, fit), axis=0)  # type: ignore
         all_target_data = np.concatenate((all_target_data, target), axis=0)
     return all_fit_data, all_target_data
 
@@ -155,3 +159,18 @@ def apply_(
     classes = np.argmax(probs, axis=-1).astype(np.uint8)
     seg = classes.reshape((h, w))
     return seg, probs_2D
+
+
+def train_and_apply_(
+    features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig
+) -> tuple[UInt8Arr, Arr, Classifier]:
+    fit, target = get_labelled_training_data_from_stack(features, labels)
+    fit, target = shuffle_sample_training_data(
+        fit, target, train_cfg.shuffle_data, train_cfg.n_samples
+    )
+    model = get_model(
+        train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu
+    )
+    model = train(model, fit, target, None)
+    pred, probs = apply_(model, features)
+    return pred, probs, model

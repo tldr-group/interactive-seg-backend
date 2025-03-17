@@ -8,7 +8,7 @@ from interactive_seg_backend.file_handling import (
 )
 from interactive_seg_backend.main import train_and_apply
 from interactive_seg_backend.extensions import (
-    # autocontext_features,
+    autocontext_features,
     CRFParams,
     do_crf_from_probabilites,
 )
@@ -24,16 +24,16 @@ image_ = load_image("tests/data/1.tif")
 labels_ = load_labels("tests/data/1_labels.tif")
 
 
-# def test_autocontext_features(
-#     train_cfg: TrainingConfig,
-# ) -> None:
-#     af_feats = autocontext_features(
-#         image_,
-#         labels_,
-#         train_cfg,
-#     )
-#     pred, _, _ = train_and_apply(af_feats, labels_, train_cfg)
-#     save_segmentation(pred, "tests/out/1_seg_autocontext.tif")
+def test_autocontext_features(
+    train_cfg: TrainingConfig,
+) -> None:
+    af_feats = autocontext_features(
+        image_,
+        labels_,
+        train_cfg,
+    )
+    pred, _, _ = train_and_apply(af_feats, labels_, train_cfg)
+    save_segmentation(pred, "tests/out/1_seg_autocontext.tif")
 
 
 def test_crf(

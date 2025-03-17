@@ -22,6 +22,7 @@ Arrlike = TypeVar(
     FloatArr,
     Arr,
     Tensor,
+    AnyArr,
 )
 
 UInt8Arrlike = TypeVar("UInt8Arrlike", npt.NDArray[np.uint8], Tensor)
