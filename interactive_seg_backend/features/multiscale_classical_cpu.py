@@ -33,7 +33,7 @@ from multiprocessing import cpu_count
 from interactive_seg_backend.configs import FeatureConfig, FloatArr, Arr
 
 from time import time
-from typing import Literal
+from typing import Literal, cast
 
 
 # - 2 to allow for main & gui threads
@@ -397,7 +397,7 @@ def multiscale_singlechannel(
         out_sigmas = list(
             ex.map(
                 lambda sigma: singlescale_singlechannel_features(  # type: ignore
-                    converted_img, raw_img, sigma, config
+                    converted_img, byte_img, sigma, config
                 ),
                 config.sigmas,
             )
@@ -466,9 +466,12 @@ def multiscale_features(
 
     for channel in range(n_ch):
         slice_arr = correct_channel_img[:, :, channel]
+        slice_arr = cast(Arr, slice_arr)
         slice_feats = multiscale_singlechannel(slice_arr, config, num_workers)
         out.append(slice_feats)
-    return np.concatenate(out, axis=-1)
+    stacked = np.concatenate(out, axis=-1)
+    stacked = cast(FloatArr, stacked)
+    return stacked
 
 
 if __name__ == "__main__":
