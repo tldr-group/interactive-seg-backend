@@ -1,3 +1,3 @@
-__all__ = ["featurise", "FeatureConfig", "Classifier"]
-from .core import featurise, FeatureConfig
+__all__ = ["featurise_", "FeatureConfig", "Classifier"]
+from .core import featurise_, FeatureConfig
 from .classifiers import Classifier

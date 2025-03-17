@@ -50,11 +50,11 @@ def test_annoying_gresycale() -> None:
 
 def test_gpu_featurise() -> None:
     rgb_img_tensor = prepare_for_gpu(img, "cuda:0")
-    feats_rgb = multiscale_features_gpu(rgb_img_tensor, feat_cfg, torch.float32)
+    feats_rgb = multiscale_features_gpu(rgb_img_tensor, feat_cfg)
 
     r = img[:, :, 0]
     img_tensor = prepare_for_gpu(r, "cuda:0")
-    feats_greyscale = multiscale_features_gpu(img_tensor, feat_cfg, torch.float32)
+    feats_greyscale = multiscale_features_gpu(img_tensor, feat_cfg)
 
     assert feats_greyscale.shape[-1] == feats_rgb.shape[-1] // 3
 
@@ -63,7 +63,7 @@ def test_gpu_e2e(
     image: Arr, labels: UInt8Arr, train_cfg: TrainingConfig, ground_truth: UInt8Arr
 ) -> None:
     img_tensor = prepare_for_gpu(image)
-    feats = multiscale_features_gpu(img_tensor, feat_cfg, torch.float32)
+    feats = multiscale_features_gpu(img_tensor, feat_cfg)
     e2e_get_miou(
         feats, labels, train_cfg, ground_truth, fname="tests/out/0_seg_gpu.tif"
     )

@@ -15,8 +15,8 @@ from interactive_seg_backend.core import (
     shuffle_sample_training_data,
     get_model,
     train,
-    apply,
 )
+from interactive_seg_backend.main import apply
 from interactive_seg_backend.utils import class_avg_miou
 
 

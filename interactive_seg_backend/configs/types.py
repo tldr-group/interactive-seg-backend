@@ -16,6 +16,7 @@ IntArr: TypeAlias = (
 )
 Arr: TypeAlias = FloatArr | IntArr
 
+AnyArr: TypeAlias = Arr | Tensor
 Arrlike = TypeVar(
     "Arrlike",
     FloatArr,

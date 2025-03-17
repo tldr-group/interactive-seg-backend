@@ -1,14 +1,14 @@
 import numpy as np
-from interactive_seg_backend.configs.config import FeatureConfig, TrainingConfig
+from interactive_seg_backend.configs.config import FeatureConfig, Preprocessing
 
-from interactive_seg_backend.file_handling import load_featurestack, save_featurestack
+from interactive_seg_backend.file_handling import load_featurestack
 from interactive_seg_backend.features import (
     multiscale_features,
     multiscale_features_gpu,
     prepare_for_gpu,
-    concat_feats,
 )
 from interactive_seg_backend.configs.types import (
+    AnyArr,
     Arr,
     UInt8Arr,
     Arrlike,
@@ -24,45 +24,27 @@ from interactive_seg_backend.classifiers import (
     XGBGPU,
 )
 
-from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRFParams
+
 from interactive_seg_backend.processing import preprocess
-from interactive_seg_backend.processing.postprocess import modal_filter
 
-from typing import Any, cast, Callable, TypeAlias
-
-FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
+from typing import Any, cast
 
 
-# TODO: add in support for custom (arbritatry) featurise functions in here
-def featurise(
+def featurise_(
     image: Arr,
-    training_cfg: TrainingConfig,
+    feature_cfg: FeatureConfig,
+    preprocessing: tuple[Preprocessing, ...] | None = None,
     use_gpu: bool = False,
-    save_path: str = "",
-    custom_fns: list[tuple[FeatureFunction, bool]] = [],
-) -> Arrlike:
-    feature_cfg = training_cfg.feature_config
+) -> AnyArr:
+    if preprocessing is not None:
+        image = preprocess(image, preprocessing)
 
-    if training_cfg.preprocessing is not None:
-        image = preprocess(image, training_cfg.preprocessing)
-
-    tensor = None
+    feats: AnyArr
     if use_gpu:
         tensor = prepare_for_gpu(image)
-        feats = multiscale_features_gpu(tensor, feature_cfg, tensor.dtype)
+        feats = multiscale_features_gpu(tensor, feature_cfg)
     else:
         feats = multiscale_features(image, feature_cfg)
-
-    for fn, gpu_flag in custom_fns:
-        if gpu_flag:
-            assert tensor
-            custom_feats = fn(tensor, feature_cfg)
-        else:
-            custom_feats = fn(image, feature_cfg)
-        feats = concat_feats(feats, custom_feats)
-
-    if save_path != "":
-        save_featurestack(feats, save_path, ".npy")
     return feats
 
 
@@ -74,11 +56,12 @@ def get_training_data(
     assert len(feature_stacks) == len(labels)
 
     def _get_stack(stack: Arrlike | str) -> Arrlike:
-        _stack: Arrlike
+        # _stack: Arrlike
         if type(stack) is str:
             _stack = load_featurestack(stack)
         else:
-            _stack = cast(Arrlike, stack)
+            pass
+        _stack = cast(Arrlike, stack)
         return _stack
 
     init_stack: Arrlike
@@ -152,13 +135,11 @@ def train(
         return model
 
 
-def apply(
+def apply_(
     model: Classifier,
     features: Arrlike,
-    training_cfg: TrainingConfig,
     h: int | None = None,
     w: int | None = None,
-    image: np.ndarray | None = None,
 ) -> tuple[UInt8Arr, Arr]:
     is_2D = len(features.shape) == 3
     if is_2D:
@@ -170,32 +151,7 @@ def apply(
         flat_features = features
     probs: Arr = model.predict_proba(flat_features)
     probs_2D = probs.reshape((h, w, -1))
-    _, _, n_classes = probs_2D.shape
 
     classes = np.argmax(probs, axis=-1).astype(np.uint8)
     seg = classes.reshape((h, w))
-
-    if training_cfg.CRF:
-        assert image is not None, "Need Image to do CRF"
-        params = CRFParams()
-        seg = do_crf_from_probabilites(probs_2D, image, n_classes, params)
-
-    if training_cfg.modal_filter:
-        seg = modal_filter(seg, training_cfg.modal_filter_k)
-
     return seg, probs_2D
-
-
-def train_and_apply(
-    features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig
-) -> tuple[UInt8Arr, Arr, Classifier]:
-    fit, target = get_labelled_training_data_from_stack(features, labels)
-    fit, target = shuffle_sample_training_data(
-        fit, target, train_cfg.shuffle_data, train_cfg.n_samples
-    )
-    model = get_model(
-        train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu
-    )
-    model = train(model, fit, target, None)
-    pred, probs = apply(model, features)
-    return pred, probs, model

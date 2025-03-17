@@ -6,7 +6,7 @@ from os.path import exists
 
 from typing import cast, Literal
 
-from interactive_seg_backend.configs import Arr, Arrlike
+from interactive_seg_backend.configs import Arr, AnyArr
 
 
 def read_file_get_arr(path: str) -> Arr:
@@ -25,12 +25,12 @@ def read_file_get_arr(path: str) -> Arr:
     return arr
 
 
-def load_featurestack(path: str) -> Arrlike:
+def load_featurestack(path: str) -> AnyArr:
     file_ext = path.split(".")[-1].lower()
-    stack: Arrlike
+    stack: AnyArr
     if file_ext in ("tif", "tiff"):
         _stack = imread(path)
-        stack = cast(Arrlike, _stack)
+        stack = cast(AnyArr, _stack)
     elif file_ext in ("npy", "npz"):
         stack = np.load(path)
     else:
@@ -39,7 +39,7 @@ def load_featurestack(path: str) -> Arrlike:
 
 
 def save_featurestack(
-    arr: Arrlike, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]
+    arr: AnyArr, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]
 ) -> None:
     file_ext = path.split(".")[-1].lower()
     if save_types == ".npy":

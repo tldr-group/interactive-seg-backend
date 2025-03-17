@@ -17,7 +17,9 @@ from typing import cast
 from interactive_seg_backend.configs import FeatureConfig, Arr, Arrlike
 
 
-def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
+def prepare_for_gpu(
+    arr: Arr, device: str = "cuda:0", dtype: torch.dtype = torch.float32
+) -> torch.Tensor:
     ndims = len(arr.shape)
     arr = cast(np.ndarray, arr)
     if ndims == 2:
@@ -27,7 +29,7 @@ def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
         if channel_idx == ndims - 1:  # (H, W, C) -> (C, H, W)
             arr = np.transpose(arr, (-1, 0, 1))
         arr = np.expand_dims(arr, (0))  # (C, H, W) -> (1, 1, H, W)
-    tensor = torch.tensor(arr, device=device)
+    tensor = torch.tensor(arr, device=device, dtype=dtype)
     return tensor
 
 
