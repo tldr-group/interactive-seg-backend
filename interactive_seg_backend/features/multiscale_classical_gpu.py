@@ -328,9 +328,9 @@ def zero_scale_filters(
 def multiscale_features_gpu(
     raw_img: torch.Tensor,
     config: FeatureConfig,
-    dtype: torch.dtype,
     reshape_squeeze: bool = True,
 ) -> torch.Tensor:
+    dtype = raw_img.dtype
     _, C, _, _ = raw_img.shape
     amax = torch.amax(raw_img)
     converted_img = (raw_img * (1 / amax)).to(dtype)
@@ -431,7 +431,7 @@ if __name__ == "__main__":
 
     start = time()
     torch.cuda.synchronize()
-    feats = multiscale_features_gpu(img, cfg, torch.float16)
+    feats = multiscale_features_gpu(img, cfg)
     feats_np = feats.cpu().numpy()
     torch.cuda.synchronize()
     end = time()
@@ -439,6 +439,6 @@ if __name__ == "__main__":
 
     img_l = img[0:1, 0:1, :, :]
 
-    feats_l = multiscale_features_gpu(img_l, cfg, torch.float16)
+    feats_l = multiscale_features_gpu(img_l, cfg)
     feats_l_np = feats_l.cpu().numpy()
     print(f"{feats_l_np.shape}")
