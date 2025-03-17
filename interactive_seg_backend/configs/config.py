@@ -1,14 +1,12 @@
 from numpy import log2, logspace
 from dataclasses import dataclass, fields, Field, field, asdict
 from json import dumps
-from typing import Any, Literal, get_args
+from typing import Any, Literal, get_args, cast
 
 from .types import (
     PossibleFeatures,
     ClassifierNames,
     Preprocessing,
-    Postprocessing,
-    LabellingStrategy,
     HITLStrategy,
     Rules,
 )
@@ -136,15 +134,15 @@ class FeatureConfig:
 
         singlescale_feats = list(strs_per_singlescale_feat.keys())
 
-        def _get_feat_name(feat: PossibleFeatures, sigma: float) -> list[str]:
+        def _get_feat_name(feat_type: PossibleFeatures, sigma: float) -> list[str]:
             feat_str_li: list[str] = []
             if name == "hessian_filter":
-                feat_str_tuple = strs_per_singlescale_feat[name]
+                feat_str_tuple = strs_per_singlescale_feat[feat_type]
                 feat_str_li = [f"{val}_σ{sigma}" for val in feat_str_tuple]
                 if self.add_mod_trace_det_hessian is False:
                     feat_str_li = feat_str_li[:2]
             elif name in singlescale_feats:
-                feat_str_tuple = strs_per_singlescale_feat[name]
+                feat_str_tuple = strs_per_singlescale_feat[feat_type]
                 feat_str_li = [f"{val}_σ{sigma}" for val in feat_str_tuple]
             return feat_str_li
 
@@ -159,6 +157,8 @@ class FeatureConfig:
                 name = cls_field.name
                 if name not in FEATURES:
                     continue
+                name = cast(PossibleFeatures, name)
+
                 is_enabled = self.__getattribute__(name)
                 if not is_enabled:
                     continue
