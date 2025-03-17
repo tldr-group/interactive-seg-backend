@@ -12,11 +12,14 @@ from kornia.filters import (
 
 from time import time
 
+from typing import cast
+
 from interactive_seg_backend.configs import FeatureConfig, Arr, Arrlike
 
 
 def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
     ndims = len(arr.shape)
+    arr = cast(np.ndarray, arr)
     if ndims == 2:
         arr = np.expand_dims(arr, (0, 1))  # (H, W) -> (1, 1, H, W)
     else:
@@ -29,10 +32,21 @@ def prepare_for_gpu(arr: Arr, device: str = "cuda:0") -> torch.Tensor:
 
 
 def concat_feats(arr1: Arrlike, arr2: Arrlike) -> Arrlike:
-    if isinstance(arr1, np.ndarray):
-        return np.concatenate((arr1, arr2), axis=-1)
+    # (optionally) cast to tensors and concatenate arrays
+    if isinstance(arr1, torch.Tensor) and isinstance(arr2, torch.Tensor):
+        res = torch.concatenate((arr1, arr2), dim=-1)
+    elif isinstance(arr1, torch.Tensor) and not isinstance(arr2, torch.Tensor):
+        tensor_2 = torch.tensor(arr2, dtype=arr1.dtype, device=arr1.device)
+        res = torch.concatenate((arr1, tensor_2), dim=-1)
+    elif isinstance(arr2, torch.Tensor) and not isinstance(arr1, torch.Tensor):
+        tensor_1 = torch.tensor(arr1, dtype=arr2.dtype, device=arr2.device)
+        res = torch.concatenate((tensor_1, arr2), dim=-1)
+    elif isinstance(arr1, np.ndarray) and isinstance(arr2, np.ndarray):
+        res = np.concatenate((arr1, arr2), axis=-1)
     else:
-        return torch.concatenate((arr1, arr2), dim=-1)
+        raise Exception(f"Invalid feat types: {type(arr1)} + {type(arr2)}")
+
+    return cast(Arrlike, res)
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
