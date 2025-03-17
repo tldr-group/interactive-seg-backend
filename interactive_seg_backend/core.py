@@ -6,6 +6,7 @@ from interactive_seg_backend.features import (
     multiscale_features,
     multiscale_features_gpu,
     prepare_for_gpu,
+    concat_feats,
 )
 from interactive_seg_backend.configs.types import (
     Arr,
@@ -27,7 +28,9 @@ from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRF
 from interactive_seg_backend.processing import preprocess
 from interactive_seg_backend.processing.postprocess import modal_filter
 
-from typing import Any, cast
+from typing import Any, cast, Callable, TypeAlias
+
+FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
 
 
 # TODO: add in support for custom (arbritatry) featurise functions in here
@@ -36,17 +39,27 @@ def featurise(
     training_cfg: TrainingConfig,
     use_gpu: bool = False,
     save_path: str = "",
+    custom_fns: list[tuple[FeatureFunction, bool]] = [],
 ) -> Arrlike:
     feature_cfg = training_cfg.feature_config
 
     if training_cfg.preprocessing is not None:
         image = preprocess(image, training_cfg.preprocessing)
 
+    tensor = None
     if use_gpu:
         tensor = prepare_for_gpu(image)
         feats = multiscale_features_gpu(tensor, feature_cfg, tensor.dtype)
     else:
         feats = multiscale_features(image, feature_cfg)
+
+    for fn, gpu_flag in custom_fns:
+        if gpu_flag:
+            assert tensor
+            custom_feats = fn(tensor, feature_cfg)
+        else:
+            custom_feats = fn(image, feature_cfg)
+        feats = concat_feats(feats, custom_feats)
 
     if save_path != "":
         save_featurestack(feats, save_path, ".npy")
