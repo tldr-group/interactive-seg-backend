@@ -175,3 +175,4 @@ cython_debug/
 feature-stack.tif
 tests/out/*
 *.old
+apply/
