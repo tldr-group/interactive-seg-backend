@@ -47,7 +47,7 @@ pytest -s
 
 
 
-
+## Install locally (i.e for use in GUI dev)
 ```bash
 pip uninstall interactive_seg_backend -y
 pip install . --no-cache-dir
