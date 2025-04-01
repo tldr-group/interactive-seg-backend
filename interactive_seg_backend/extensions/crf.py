@@ -2,21 +2,9 @@ import numpy as np
 import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import unary_from_labels
 
+
+from interactive_seg_backend.configs import CRFParams
 from interactive_seg_backend.utils import to_rgb_arr
-
-from dataclasses import dataclass
-
-
-@dataclass
-class CRFParams:
-    label_confidence: float = 0.6
-    sxy_g: tuple[int, int] = (3, 3)
-    sxy_b: tuple[int, int] = (80, 80)  # was (80, 80)
-    s_rgb: tuple[int, int, int] = (13, 13, 13)
-    compat_g: float = 10  # 10
-    compat_b: float = 10  # 10
-    n_infer: int = 10
-
 
 KERNEL = dcrf.FULL_KERNEL
 default_crf_params = CRFParams()
