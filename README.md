@@ -44,3 +44,11 @@ Requires the pytest package (`pip install -e '.[test]'`)
 ```bash
 pytest -s
 ```
+
+
+
+
+```bash
+pip uninstall interactive_seg_backend -y
+pip install . --no-cache-dir
+```

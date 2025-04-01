@@ -2,7 +2,7 @@
 requires = ["setuptools>=61.0", "wheel"]
 
 [tool.setuptools.packages]
-find = { where = ["interactive_seg_backend"] }
+find = { exclude= ["apply*"] }
 
 [project]
 name = "interactive_seg_backend"
