@@ -64,8 +64,8 @@ def get_training_data(
         if type(stack) is str:
             _stack = load_featurestack(stack)
         else:
-            pass
-        _stack = cast(Arrlike, stack)
+            _stack = stack
+        _stack = cast(Arrlike, _stack)
         return _stack
 
     init_stack: Arrlike
