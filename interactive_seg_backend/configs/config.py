@@ -227,7 +227,7 @@ class TrainingConfig:
 
     preprocessing: tuple[Preprocessing] | None = None
 
-    modal_filter: bool = True
+    modal_filter: bool = False
     modal_filter_k: int = 2
 
     autocontext: bool = False
