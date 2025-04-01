@@ -1,9 +1,9 @@
 from numpy import log2, logspace
 from dataclasses import dataclass, fields, Field, field, asdict
-from json import dumps
+from json import dumps, load, dump
 from typing import Any, Literal, get_args, cast
 
-from .types import (
+from interactive_seg_backend.configs.types import (
     PossibleFeatures,
     ClassifierNames,
     Preprocessing,
@@ -206,6 +206,10 @@ class CRFParams:
     n_infer: int = 10
 
 
+default_crf_params = CRFParams()
+KEYS_TO_CLASSES = {"feature_config": FeatureConfig, "CRF_params": CRFParams}
+
+
 @dataclass
 class TrainingConfig:
     """Config for end-to-end training: features, classifier, processing, improvements."""
@@ -223,11 +227,12 @@ class TrainingConfig:
 
     preprocessing: tuple[Preprocessing] | None = None
 
-    modal_filter: bool = False
+    modal_filter: bool = True
     modal_filter_k: int = 2
 
     autocontext: bool = False
     CRF: bool = False
+    CRF_params: CRFParams = default_crf_params
 
     HITL: bool = False
     HITL_strategy: HITLStrategy = "wrong"
@@ -253,6 +258,34 @@ class TrainingConfig:
             self.classifier_params["class_weight"] = "balanced"
 
 
+def load_training_config_json(
+    path: str, key_to_dataclass: dict[str, Any]
+) -> TrainingConfig:
+    with open(path, "r") as f:
+        json_obj: dict[str, object] = load(f)
+
+    res: dict[str, Any] = {}
+    for key, value in json_obj.items():
+        if key in key_to_dataclass:
+            dataclass_def = key_to_dataclass[key]
+            res[key] = dataclass_def(**value)
+        else:
+            res[key] = value
+    return TrainingConfig(**res)
+
+
+def save_training_config_json(
+    cfg: TrainingConfig, path: str, key_to_dataclass: dict[str, Any]
+) -> None:
+    res: dict[str, Any] = {}
+    for key, value in cfg.__dict__.items():
+        if key in key_to_dataclass:  # assume is dataclass
+            value = value.__dict__
+        res[key] = value
+    with open(path, "w+") as f:
+        dump(res, f, ensure_ascii=False, indent=2)
+
+
 if __name__ == "__main__":
     c = FeatureConfig(
         sigmas=(1.0, 1.5, 2.0),
@@ -266,3 +299,20 @@ if __name__ == "__main__":
     print(" ")
     t = TrainingConfig(c, "xgb")
     print(t)
+    save_training_config_json(
+        t, "foo.json", {"feature_config": None, "CRF_params": None}
+    )
+    v = load_training_config_json("foo.json", KEYS_TO_CLASSES)
+
+    default_feats = FeatureConfig()
+    default = TrainingConfig(default_feats)
+    save_training_config_json(
+        default,
+        "interactive_seg_backend/configs/examples/default.json",
+        KEYS_TO_CLASSES,
+    )
+
+    with_crf = TrainingConfig(default_feats, modal_filter=False, CRF=True)
+    save_training_config_json(
+        with_crf, "interactive_seg_backend/configs/examples/crf.json", KEYS_TO_CLASSES
+    )
