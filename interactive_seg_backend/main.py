@@ -2,6 +2,7 @@ import numpy as np
 from typing import Callable, TypeAlias
 
 from interactive_seg_backend.configs.config import FeatureConfig, TrainingConfig
+from interactive_seg_backend.extensions.autocontext import autocontext_features
 from interactive_seg_backend.file_handling import save_featurestack
 from interactive_seg_backend.features import (
     prepare_for_gpu,
@@ -75,9 +76,21 @@ def apply(
     h: int | None = None,
     w: int | None = None,
     image: np.ndarray | None = None,
+    labels: UInt8Arr | None = None,
 ) -> tuple[UInt8Arr, Arr]:
     seg, probs_2D = apply_(model, features)
     _, _, n_classes = probs_2D.shape
+
+    if training_cfg.autocontext:
+        assert labels is not None, "Need labels to do CRF"
+        new_feats = autocontext_features(
+            image,
+            labels,
+            training_cfg,
+            features,
+            probs_2D,
+        )
+        seg, probs_2D, _ = train_and_apply(new_feats, labels, training_cfg)
 
     if training_cfg.CRF:
         assert image is not None, "Need Image to do CRF"
