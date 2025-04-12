@@ -32,6 +32,7 @@ from interactive_seg_backend.core import (
     train,
     apply_,
     featurise_,
+    train_and_apply_,
 )
 from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRFParams
 from interactive_seg_backend.processing.postprocess import modal_filter
@@ -84,13 +85,9 @@ def apply(
     if training_cfg.autocontext:
         assert labels is not None, "Need labels to do CRF"
         new_feats = autocontext_features(
-            image,
-            labels,
-            training_cfg,
-            features,
-            probs_2D,
+            image, labels, training_cfg, features, probs_2D, "autocontext_original"
         )
-        seg, probs_2D, _ = train_and_apply(new_feats, labels, training_cfg)
+        seg, probs_2D, _ = train_and_apply_(new_feats, labels, training_cfg)
 
     if training_cfg.CRF:
         assert image is not None, "Need Image to do CRF"
@@ -114,5 +111,5 @@ def train_and_apply(
         train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu
     )
     model = train(model, fit, target, None)
-    pred, probs = apply(model, features, train_cfg)
+    pred, probs = apply(model, features, train_cfg, labels=labels)
     return pred, probs, model
