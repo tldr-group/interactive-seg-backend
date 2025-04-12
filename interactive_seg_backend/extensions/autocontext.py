@@ -17,6 +17,7 @@ def autocontext_features(
     labels: UInt8Arr,
     train_cfg: TrainingConfig,
     original_feats: Arr | None = None,
+    original_probs: Arr | None = None,
     which: AutocontextType = "autocontext_ilastik",
 ) -> AnyArr:
     if original_feats is None:
@@ -26,7 +27,11 @@ def autocontext_features(
     else:
         feats = original_feats
 
-    _, probs, _ = train_and_apply_(feats, labels, train_cfg)
+    if original_probs is None:
+        _, probs, _ = train_and_apply_(feats, labels, train_cfg)
+    else:
+        probs = original_probs
+
     if which == "autocontext_original":
         return concat_feats(feats, probs)
     else:
