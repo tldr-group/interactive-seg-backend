@@ -232,7 +232,7 @@ class TrainingConfig:
 
     autocontext: bool = False
     CRF: bool = False
-    CRF_params: CRFParams = default_crf_params
+    CRF_params: CRFParams = field(default_factory=lambda: default_crf_params)
     add_dino_features: bool = False
 
     HITL: bool = False
