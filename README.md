@@ -58,3 +58,6 @@ If offline
 pip uninstall interactive_seg_backend -y
 pip install . --no-cache-dir --no-index
 ```
+
+## Notes:
+- your CRF params are always default!!

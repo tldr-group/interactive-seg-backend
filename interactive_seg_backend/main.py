@@ -36,7 +36,7 @@ from interactive_seg_backend.core import (
 )
 from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRFParams
 from interactive_seg_backend.processing.postprocess import modal_filter
-
+from interactive_seg_backend.extensions.hydra import apply_hydra
 
 FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
 
@@ -89,10 +89,15 @@ def apply(
         )
         seg, probs_2D, _ = train_and_apply_(new_feats, labels, training_cfg)
 
+    crf_probs = None
     if training_cfg.CRF:
         assert image is not None, "Need Image to do CRF"
-        params = CRFParams()
-        seg = do_crf_from_probabilites(probs_2D, image, n_classes, params)
+        params = training_cfg.CRF_params
+        seg, crf_probs = do_crf_from_probabilites(probs_2D, image, n_classes, params)
+
+    if training_cfg.CRF_AC:
+        # assert crf_probs is not None, "Need CRF to do CRF_AC"
+        seg, probs_2D = apply_hydra(seg, probs_2D, training_cfg, image, labels)
 
     if training_cfg.modal_filter:
         seg = modal_filter(seg, training_cfg.modal_filter_k)

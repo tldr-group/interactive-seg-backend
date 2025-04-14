@@ -234,6 +234,7 @@ class TrainingConfig:
     CRF: bool = False
     CRF_params: CRFParams = default_crf_params
     add_dino_features: bool = False
+    CRF_AC: bool = True
 
     HITL: bool = False
     HITL_strategy: HITLStrategy = "wrong"

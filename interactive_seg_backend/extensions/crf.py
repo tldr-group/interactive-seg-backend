@@ -64,16 +64,21 @@ def do_crf_from_labels(
 
 def do_crf_from_probabilites(
     probs: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
     if len(img_arr.shape) == 2:
         img_arr = to_rgb_arr(img_arr)
     h, w, c = img_arr.shape
     probs = probs.astype(np.float32)
     probs = -np.log(probs)
     unary = np.ascontiguousarray(probs.reshape(h * w, n_classes).T)
+
     d = _get_crf(img_arr, n_classes, unary, crf)
     Q = d.inference(crf.n_infer)
+
     crf_seg = np.argmax(Q, axis=0)
     crf_seg = crf_seg.reshape((h, w, 1))
     refined = crf_seg.squeeze(-1)
-    return refined
+
+    refined_probs: np.ndarray = np.array(Q).reshape((h, w, -1))
+
+    return (refined, refined_probs)
