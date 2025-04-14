@@ -91,7 +91,7 @@ def apply(
 
     if training_cfg.CRF:
         assert image is not None, "Need Image to do CRF"
-        params = CRFParams()
+        params = training_cfg.CRF_params
         seg = do_crf_from_probabilites(probs_2D, image, n_classes, params)
 
     if training_cfg.modal_filter:
