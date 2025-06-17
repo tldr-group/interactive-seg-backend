@@ -19,14 +19,7 @@ from interactive_seg_backend.configs.types import (
     UInt8Arrlike,
     ClassifierNames,
 )
-from interactive_seg_backend.classifiers import (
-    Classifier,
-    RandomForest,
-    Logistic,
-    Linear,
-    XGBCPU,
-    XGBGPU,
-)
+from interactive_seg_backend.classifiers import Classifier, RandomForest, Logistic, Linear, XGBCPU, XGBGPU, MLP
 
 
 from interactive_seg_backend.processing import preprocess
@@ -52,9 +45,7 @@ def featurise_(
     return feats
 
 
-def get_training_data(
-    feature_stacks: list[Arrlike] | list[str], labels: list[UInt8Arr]
-) -> tuple[Arrlike, UInt8Arr]:
+def get_training_data(feature_stacks: list[Arrlike] | list[str], labels: list[UInt8Arr]) -> tuple[Arrlike, UInt8Arr]:
     # support for handling stacks from filepaths s.t only one stack in memory at once
     assert len(feature_stacks) > 0
     assert len(feature_stacks) == len(labels)
@@ -71,9 +62,7 @@ def get_training_data(
     init_stack: Arrlike
     init_stack, init_labels = _get_stack(feature_stacks[0]), labels[0]
 
-    all_fit_data, all_target_data = get_labelled_training_data_from_stack(
-        init_stack, init_labels
-    )
+    all_fit_data, all_target_data = get_labelled_training_data_from_stack(init_stack, init_labels)
     for stack, label in zip(feature_stacks[1:], labels[1:]):
         _stack = _get_stack(stack)  # type: ignore
         fit, target = get_labelled_training_data_from_stack(_stack, label)
@@ -82,9 +71,7 @@ def get_training_data(
     return all_fit_data, all_target_data
 
 
-def get_labelled_training_data_from_stack(
-    feature_stack: Arrlike, labels: UInt8Arr
-) -> tuple[Arrlike, UInt8Arr]:
+def get_labelled_training_data_from_stack(feature_stack: Arrlike, labels: UInt8Arr) -> tuple[Arrlike, UInt8Arr]:
     h, w, n_feats = feature_stack.shape
     flat_labels = labels.reshape((h * w))
     flat_features = feature_stack.reshape((h * w, n_feats))
@@ -111,9 +98,7 @@ def shuffle_sample_training_data(
         return fit[all_inds], target[all_inds]
 
 
-def get_model(
-    model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: bool = False
-) -> Classifier:
+def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: bool = False) -> Classifier:
     if model_type == "random_forest":
         return RandomForest(extra_args)
     elif model_type == "logistic_regression":
@@ -124,13 +109,13 @@ def get_model(
         return XGBCPU(extra_args)
     elif model_type == "xgb" and to_gpu is True:
         return XGBGPU(extra_args)
+    elif model_type == "mlp":
+        return MLP(extra_args)
     else:
         raise Exception("Not implemented!")
 
 
-def train(
-    model: Classifier, fit: Arrlike, target: UInt8Arr, sample_weight: Arr | None
-) -> Classifier:
+def train(model: Classifier, fit: Arrlike, target: UInt8Arr, sample_weight: Arr | None) -> Classifier:
     if sample_weight is None:
         model.fit(fit, target)
         return model
@@ -165,12 +150,8 @@ def train_and_apply_(
     features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig
 ) -> tuple[UInt8Arr, Arr, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
-    fit, target = shuffle_sample_training_data(
-        fit, target, train_cfg.shuffle_data, train_cfg.n_samples
-    )
-    model = get_model(
-        train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu
-    )
+    fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
+    model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)
     model = train(model, fit, target, None)
     pred, probs = apply_(model, features)
     return pred, probs, model

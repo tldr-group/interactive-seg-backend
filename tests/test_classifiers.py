@@ -21,9 +21,7 @@ def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 
 
 def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
-    tc = TrainingConfig(
-        feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000}
-    )
+    tc = TrainingConfig(feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000})
     e2e_get_miou(
         feature_stack,
         labels,
@@ -45,6 +43,33 @@ def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
         ground_truth,
         True,
         "tests/out/0_seg_xgbcpus.tif",
+        True,
+        0.5,
+    )
+
+
+MAX_ITERS = 3000
+
+
+def test_mlp(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
+    tc = TrainingConfig(
+        feat_cfg,
+        classifier="mlp",
+        classifier_params={
+            "hidden_layer_sizes": (50, 50, 50),
+            "activation": "relu",
+            "solver": "adam",
+            "max_iter": MAX_ITERS,
+            "warm_start": False,
+        },
+    )
+    e2e_get_miou(
+        feature_stack,
+        labels,
+        tc,
+        ground_truth,
+        True,
+        "tests/out/0_seg_mlp.tif",
         True,
         0.5,
     )
