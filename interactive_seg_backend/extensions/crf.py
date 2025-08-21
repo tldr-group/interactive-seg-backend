@@ -1,16 +1,23 @@
 import numpy as np
-import pydensecrf.densecrf as dcrf
-from pydensecrf.utils import unary_from_labels
-
 
 from interactive_seg_backend.configs import CRFParams
 from interactive_seg_backend.utils import to_rgb_arr
 
-KERNEL = dcrf.FULL_KERNEL
+CRF_AVAILALE = True
+try:
+    import pydensecrf.densecrf as dcrf
+    from pydensecrf.utils import unary_from_labels
+
+    KERNEL = dcrf.FULL_KERNEL
+except ImportError:
+    print("Warning: CRF unvailable")
+    CRF_AVAILALE = False
+
+
 default_crf_params = CRFParams()
 
 
-def _get_crf(img_arr: np.ndarray, n_c: int, unary: np.ndarray, crf: CRFParams) -> dcrf.DenseCRF2D:
+def _get_crf(img_arr: np.ndarray, n_c: int, unary: np.ndarray, crf: CRFParams) -> "dcrf.DenseCRF2D":
     h, w, _ = img_arr.shape
     d = dcrf.DenseCRF2D(w, h, n_c)
     u = np.ascontiguousarray(unary)

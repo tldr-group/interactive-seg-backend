@@ -34,7 +34,7 @@ from interactive_seg_backend.core import (
     featurise_,
     train_and_apply_,
 )
-from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRFParams
+from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRF_AVAILABLE
 from interactive_seg_backend.processing.postprocess import modal_filter
 
 
@@ -82,14 +82,12 @@ def apply(
     seg, probs_2D = apply_(model, features)
     _, _, n_classes = probs_2D.shape
 
-    if training_cfg.autocontext:
+    if training_cfg.autocontext and CRF_AVAILABLE:
         assert labels is not None, "Need labels to do CRF"
-        new_feats = autocontext_features(
-            image, labels, training_cfg, features, probs_2D, "autocontext_original"
-        )
+        new_feats = autocontext_features(image, labels, training_cfg, features, probs_2D, "autocontext_original")
         seg, probs_2D, _ = train_and_apply_(new_feats, labels, training_cfg)
 
-    if training_cfg.CRF:
+    if training_cfg.CRF and CRF_AVAILABLE:
         assert image is not None, "Need Image to do CRF"
         params = training_cfg.CRF_params
         seg = do_crf_from_probabilites(probs_2D, image, n_classes, params)
@@ -100,16 +98,10 @@ def apply(
     return seg, probs_2D
 
 
-def train_and_apply(
-    features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig
-) -> tuple[UInt8Arr, Arr, Classifier]:
+def train_and_apply(features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig) -> tuple[UInt8Arr, Arr, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
-    fit, target = shuffle_sample_training_data(
-        fit, target, train_cfg.shuffle_data, train_cfg.n_samples
-    )
-    model = get_model(
-        train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu
-    )
+    fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
+    model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)
     model = train(model, fit, target, None)
     pred, probs = apply(model, features, train_cfg, labels=labels)
     return pred, probs, model
