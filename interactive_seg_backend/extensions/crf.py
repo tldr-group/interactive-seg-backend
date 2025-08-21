@@ -3,7 +3,7 @@ import numpy as np
 from interactive_seg_backend.configs import CRFParams
 from interactive_seg_backend.utils import to_rgb_arr
 
-CRF_AVAILALE = True
+CRF_AVAILABLE = True
 try:
     import pydensecrf.densecrf as dcrf
     from pydensecrf.utils import unary_from_labels
@@ -11,7 +11,7 @@ try:
     KERNEL = dcrf.FULL_KERNEL
 except ImportError:
     print("Warning: CRF unvailable")
-    CRF_AVAILALE = False
+    CRF_AVAILABLE = False
 
 
 default_crf_params = CRFParams()
