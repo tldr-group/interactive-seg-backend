@@ -1,10 +1,13 @@
 import pytest
 
+from os import makedirs
+
 from interactive_seg_backend.configs import Arr, UInt8Arr, TrainingConfig, FeatureConfig
 from test_core import e2e_get_miou
 
 feat_cfg = FeatureConfig(add_weka_sigma_multiplier=False)
 
+makedirs('tests/out', exist_ok=True)
 
 def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     tc = TrainingConfig(feat_cfg, classifier="linear_regression")

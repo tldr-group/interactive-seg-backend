@@ -176,3 +176,4 @@ feature-stack.tif
 tests/out/*
 *.old
 apply/
+uv.lock

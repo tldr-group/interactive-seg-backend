@@ -9,6 +9,7 @@ from interactive_seg_backend.file_handling import (
 from interactive_seg_backend.main import train_and_apply
 from interactive_seg_backend.extensions import (
     autocontext_features,
+    CRF_AVAILABLE,
     CRFParams,
     do_crf_from_probabilites,
 )
@@ -16,7 +17,7 @@ from interactive_seg_backend.extensions import (
 
 @pytest.fixture
 def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
-    extra_args = {"n_estimators": 200, "max_features": 2, "max_depth": None}
+    extra_args: dict[str, int | str | None] = {"n_estimators": 200, "max_features": 2, "max_depth": None}
     return TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
@@ -36,6 +37,7 @@ def test_autocontext_features(
     save_segmentation(pred, "tests/out/1_seg_autocontext.tif")
 
 
+@pytest.mark.skipif(not CRF_AVAILABLE)
 def test_crf(
     image: Arr,
     feature_stack: Arr,

@@ -217,7 +217,7 @@ class TestGPUCPUEquivalence:
             .unsqueeze(0)
         )
         assert len(img_tensor.shape) == 4, "need (B,C,H,W) tensor for GPU feats"
-        feats_gpu = ft_gpu.multiscale_features_gpu(img_tensor, cfg, torch.float32)
+        feats_gpu = ft_gpu.multiscale_features_gpu(img_tensor, cfg)
         feats_gpu_np: npt.NDArray[np.float32] = feats_gpu.cpu().numpy()
 
         assert feats_cpu.shape == feats_gpu.shape, (

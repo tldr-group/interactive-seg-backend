@@ -1,11 +1,11 @@
 import pytest
 from tifffile import imread
 import numpy as np
-import torch
 
 from interactive_seg_backend.configs import Arr, UInt8Arr, FeatureConfig, TrainingConfig
 from interactive_seg_backend.features import (
     multiscale_features,
+    TORCH_AVAILABLE,
     prepare_for_gpu,
     multiscale_features_gpu,
 )
@@ -47,7 +47,7 @@ def test_annoying_gresycale() -> None:
 
     assert feats_r.shape == feats_e.shape
 
-
+@pytest.mark.skipif(not TORCH_AVAILABLE)
 def test_gpu_featurise() -> None:
     rgb_img_tensor = prepare_for_gpu(img, "cuda:0")
     feats_rgb = multiscale_features_gpu(rgb_img_tensor, feat_cfg)
@@ -58,7 +58,7 @@ def test_gpu_featurise() -> None:
 
     assert feats_greyscale.shape[-1] == feats_rgb.shape[-1] // 3
 
-
+@pytest.mark.skipif(not TORCH_AVAILABLE)
 def test_gpu_e2e(
     image: Arr, labels: UInt8Arr, train_cfg: TrainingConfig, ground_truth: UInt8Arr
 ) -> None:

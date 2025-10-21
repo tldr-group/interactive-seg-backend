@@ -10,6 +10,7 @@ try:
 
     KERNEL = dcrf.FULL_KERNEL
 except ImportError:
+    # TODO: make this logging
     print("Warning: CRF unvailable")
     CRF_AVAILABLE = False
 
@@ -64,6 +65,10 @@ def do_crf_from_labels(labels_arr: np.ndarray, img_arr: np.ndarray, n_classes: i
 
 
 def do_crf_from_probabilites(probs: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams) -> np.ndarray:
+    if CRF_AVAILABLE is False:
+        # TODO: add warning log here
+        return probs
+
     if len(img_arr.shape) == 2:
         img_arr = to_rgb_arr(img_arr)
     h, w, c = img_arr.shape
