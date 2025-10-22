@@ -10,6 +10,8 @@ To install:
 git clone https://github.com/tldr-group/interactive-seg-backend
 cd interactive-seg-backend
 pip install .
+# requires some extra build steps
+pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
 ### Pip:
@@ -41,10 +43,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 uv sync --extra gpu
+uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
 ```bash
 uv sync --all-extras 
+uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
 ## Benchmark
@@ -78,17 +82,18 @@ pip install . --no-cache-dir --no-index
 ```
 
 ## TODO:
-- add bash script to download test resources from azure or similar
-  - make tests save outputs to tmp
-  - acutally just need to mkdir out in code and download single feautre stack file
 - logging
-- make CPU version still work with conditional imports and string quote types
+- docstrings
 - make typing story more compelling:
+  - helper typesafe functions?
+  - pydantic?
   - actually make the main functions able to take in tensors or arrays
+  - or give up and make separate functions where necesarry
   - make core vs main distinction make more sense
+    - make CPU version still work with conditional imports and string quote types
     - export everything important from main / init
     - pass down things you care about i.e sample weights into train / train and apply
-- docstrings
+
 - improvements: fixed vf, rules (connectivity) ?
 - applying: patched, 3D (+ average), all with memory consideration (caching)
 

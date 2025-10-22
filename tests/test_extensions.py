@@ -17,7 +17,11 @@ from interactive_seg_backend.extensions import (
 
 @pytest.fixture
 def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
-    extra_args: dict[str, int | str | None] = {"n_estimators": 200, "max_features": 2, "max_depth": None}
+    extra_args: dict[str, int | str | None] = {
+        "n_estimators": 200,
+        "max_features": 2,
+        "max_depth": None,
+    }
     return TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
@@ -37,7 +41,7 @@ def test_autocontext_features(
     save_segmentation(pred, "tests/out/1_seg_autocontext.tif")
 
 
-@pytest.mark.skipif(not CRF_AVAILABLE)
+@pytest.mark.skipif(not CRF_AVAILABLE, reason="requires CRF be installed")
 def test_crf(
     image: Arr,
     feature_stack: Arr,

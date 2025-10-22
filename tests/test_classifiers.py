@@ -7,7 +7,8 @@ from test_core import e2e_get_miou
 
 feat_cfg = FeatureConfig(add_weka_sigma_multiplier=False)
 
-makedirs('tests/out', exist_ok=True)
+makedirs("tests/out", exist_ok=True)
+
 
 def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     tc = TrainingConfig(feat_cfg, classifier="linear_regression")
@@ -24,7 +25,9 @@ def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 
 
 def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
-    tc = TrainingConfig(feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000})
+    tc = TrainingConfig(
+        feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000}
+    )
     e2e_get_miou(
         feature_stack,
         labels,
