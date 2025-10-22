@@ -1,6 +1,8 @@
 import numpy as np
+from scipy.ndimage import rotate  # type: ignore[import]
+from skimage.filters import gaussian  # type: ignore[import]
 
-from interactive_seg_backend.configs import UInt8Arr
+from interactive_seg_backend.configs.types import Arr, FloatArr, UInt8Arr
 
 
 def class_avg_mious(prediction: UInt8Arr, ground_truth: UInt8Arr) -> list[float]:
@@ -29,6 +31,43 @@ def to_rgb_arr(arr: np.ndarray) -> np.ndarray:
         arr = np.transpose(arr, (1, 2, 0))
     arr = np.repeat(arr, 3, axis=-1)
     return arr
+
+
+# ========== TYPESAFE WRAPPERS ==========
+# wrappers to make the typechecker happy
+
+
+def rotate_ts(
+    input: FloatArr,
+    angle: float,
+    axes: tuple[int, ...] = (1, 0),
+    reshape: bool = True,
+    order: int = 3,
+    mode: str = "constant",
+    cval: float = 0,
+    prefilter: bool = True,
+) -> FloatArr:
+    return rotate(input, angle, axes, reshape, None, order, mode, cval, prefilter)  # type: ignore
+
+
+def gaussian_ts(
+    image: Arr,
+    sigma: float = 1,
+    mode: str = "nearest",
+    cval: int = 0,
+    preserve_range: bool = False,
+    truncate: float = 4,
+    channel_axis: int | None = None,
+) -> FloatArr:
+    return gaussian(
+        image,
+        sigma,
+        mode=mode,
+        cval=cval,
+        preserve_range=preserve_range,
+        truncate=truncate,
+        channel_axis=channel_axis,
+    )  # type: ignore
 
 
 if __name__ == "__main__":

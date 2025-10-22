@@ -3,24 +3,33 @@ import numpy as np
 from interactive_seg_backend.configs import CRFParams
 from interactive_seg_backend.utils import to_rgb_arr
 
-CRF_AVAILABLE = True
+from typing import TYPE_CHECKING, Any
+
+crf_imported = True
 try:
     import pydensecrf.densecrf as dcrf
-    from pydensecrf.utils import unary_from_labels
+    from pydensecrf.utils import unary_from_labels  # type: ignore[import]
 
     KERNEL = dcrf.FULL_KERNEL
 except ImportError:
     # TODO: make this logging
     print("Warning: CRF unvailable")
-    CRF_AVAILABLE = False
+    crf_imported = False
+CRF_AVAILABLE = crf_imported
+
+if TYPE_CHECKING:
+    import pydensecrf.densecrf as dcrf
+    from pydensecrf.utils import unary_from_labels  # type: ignore[import]
 
 
 default_crf_params = CRFParams()
 
 
-def _get_crf(img_arr: np.ndarray, n_c: int, unary: np.ndarray, crf: CRFParams) -> "dcrf.DenseCRF2D":
+def _get_crf(
+    img_arr: np.ndarray, n_c: int, unary: np.ndarray, crf: CRFParams
+) -> "dcrf.DenseCRF2D":
     h, w, _ = img_arr.shape
-    d = dcrf.DenseCRF2D(w, h, n_c)
+    d: Any = dcrf.DenseCRF2D(w, h, n_c)
     u = np.ascontiguousarray(unary)
     d.setUnaryEnergy(u)
     d.addPairwiseGaussian(
@@ -40,7 +49,9 @@ def _get_crf(img_arr: np.ndarray, n_c: int, unary: np.ndarray, crf: CRFParams) -
     return d
 
 
-def do_crf_from_labels(labels_arr: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams) -> np.ndarray:
+def do_crf_from_labels(
+    labels_arr: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams
+) -> np.ndarray:
     """Given a multiclass (foreground) segmentation and orignal image arr,
     refine using a conditional random field with set parameters.
 
@@ -55,16 +66,20 @@ def do_crf_from_labels(labels_arr: np.ndarray, img_arr: np.ndarray, n_classes: i
     :return: refined segmentation, shape (h, w, 1)
     :rtype: np.ndarray
     """
-    h, w, c = img_arr.shape
-    unary = unary_from_labels(labels_arr, n_classes, crf.label_confidence, zero_unsure=False)
-    d = _get_crf(img_arr, n_classes, unary, crf)
+    h, w, _ = img_arr.shape
+    unary = unary_from_labels(
+        labels_arr, n_classes, crf.label_confidence, zero_unsure=False
+    )
+    d: Any = _get_crf(img_arr, n_classes, unary, crf)
     Q = d.inference(crf.n_infer)
     crf_seg = np.argmax(Q, axis=0)
     crf_seg = crf_seg.reshape((h, w, 1))
     return crf_seg
 
 
-def do_crf_from_probabilites(probs: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams) -> np.ndarray:
+def do_crf_from_probabilites(
+    probs: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams
+) -> np.ndarray:
     if CRF_AVAILABLE is False:
         # TODO: add warning log here
         return probs

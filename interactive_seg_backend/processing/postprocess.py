@@ -1,5 +1,5 @@
-from skimage.filters.rank import modal
-from skimage.morphology import disk
+from skimage.filters.rank import modal  # type: ignore[import]
+from skimage.morphology import disk  # type: ignore[import]
 
 from interactive_seg_backend.configs import UInt8Arr
 from interactive_seg_backend.configs.types import (
@@ -8,12 +8,12 @@ from interactive_seg_backend.configs.types import (
 
 
 def make_footprint(k: int) -> UInt8Arr:
-    return disk(2 * k + 1)
+    return disk(2 * k + 1)  # type: ignore
 
 
 def modal_filter(seg_arr: UInt8Arr, k: int = 2) -> UInt8Arr:
     footprint = make_footprint(k)
-    return modal(seg_arr, footprint)
+    return modal(seg_arr, footprint)  # type: ignore
 
 
 def postprocess(

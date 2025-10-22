@@ -19,10 +19,10 @@ import numpy as np
 import numpy.typing as npt
 
 from skimage import filters
-from skimage.draw import disk
-from skimage.feature import structure_tensor, structure_tensor_eigenvalues
-from scipy.ndimage import rotate, convolve  # type: ignore
-from skimage.util.dtype import img_as_float32
+from skimage.draw import disk  # type: ignore[import]
+from skimage.feature import structure_tensor, structure_tensor_eigenvalues  # type: ignore[import]
+from scipy.ndimage import convolve  # type: ignore[import]
+from skimage.util.dtype import img_as_float32  # type: ignore[import]
 
 from itertools import combinations_with_replacement
 from itertools import chain
@@ -31,6 +31,7 @@ from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
 from interactive_seg_backend.configs import FeatureConfig, FloatArr, Arr
+from interactive_seg_backend.utils import gaussian_ts, rotate_ts
 
 from time import time
 from typing import Literal, cast
@@ -77,9 +78,7 @@ def singlescale_gaussian(img: FloatArr, sigma: int, mult: float = 1.0) -> FloatA
     adj_sigma = mult * sigma
     k = 4 * adj_sigma + 1
     trunc = (k + 1) / (2 * adj_sigma)
-    out: FloatArr = filters.gaussian(
-        img, sigma=int(adj_sigma), preserve_range=True, truncate=trunc
-    )
+    out = gaussian_ts(img, int(adj_sigma), preserve_range=True, truncate=trunc)
     return out
 
 
@@ -140,7 +139,7 @@ def singlescale_mean(
     :return: mean filtered img
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.uint8] = filters.rank.mean(byte_img, sigma_rad_footprint)
+    out: npt.NDArray[np.uint8] = filters.rank.mean(byte_img, sigma_rad_footprint)  # type: ignore
     return out
 
 
@@ -156,7 +155,7 @@ def singlescale_median(
     :return: mean filtered img
     :rtype: np.ndarray
     """
-    return filters.rank.median(byte_img, sigma_rad_footprint)
+    return filters.rank.median(byte_img, sigma_rad_footprint)  # type: ignore
 
 
 def singlescale_maximum(
@@ -171,7 +170,7 @@ def singlescale_maximum(
     :return: maximum filtered img
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.uint8] = filters.rank.maximum(byte_img, sigma_rad_footprint)
+    out: npt.NDArray[np.uint8] = filters.rank.maximum(byte_img, sigma_rad_footprint)  # type: ignore
     return out
 
 
@@ -187,7 +186,7 @@ def singlescale_minimum(
     :return: minimum filtered img
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.uint8] = filters.rank.minimum(byte_img, sigma_rad_footprint)
+    out: npt.NDArray[np.uint8] = filters.rank.minimum(byte_img, sigma_rad_footprint)  # type: ignore
     return out
 
 
@@ -201,7 +200,7 @@ def singlescale_structure_tensor(img: FloatArr, sigma: int) -> tuple[FloatArr, .
     :return: largest two eigenvalues of structure tensor at each pixel
     :rtype: np.ndarray
     """
-    tensor: list[FloatArr] = structure_tensor(img, sigma)
+    tensor: list[FloatArr] = structure_tensor(img, sigma)  # type: ignore
     eigvals: FloatArr = structure_tensor_eigenvalues(tensor)
     return (eigvals[0], eigvals[1])
 
@@ -216,7 +215,7 @@ def singlescale_laplacian(img: FloatArr) -> FloatArr:
     :return: laplacian filtered img arr
     :rtype: np.ndarray
     """
-    return filters.laplace(img)
+    return filters.laplace(img)  # type: ignore
 
 
 # # %% ===================================SCALE-FREE FEATURES===================================
@@ -233,7 +232,7 @@ def bilateral(byte_img: npt.NDArray[np.uint8]) -> list[npt.NDArray[np.uint8]]:
     for spatial_radius in (5, 10):
         footprint = make_footprint(spatial_radius)
         for value_range in (50, 100):  # check your pixels are [0, 255]
-            filtered: npt.NDArray[np.uint8] = filters.rank.mean_bilateral(
+            filtered: npt.NDArray[np.uint8] = filters.rank.mean_bilateral(  # type: ignore
                 byte_img, footprint, s0=value_range, s1=value_range
             )
             bilaterals.append(filtered)
@@ -290,7 +289,7 @@ def membrane_projections(
     kernel[:, x0:x1] = 1
 
     all_kernels = [
-        np.rint(rotate(kernel, angle, reshape=False)) for angle in range(0, 180, 6)
+        np.rint(rotate_ts(kernel, angle, reshape=False)) for angle in range(0, 180, 6)
     ]
     # map these across threads to speed up (order unimportant)
     with ThreadPoolExecutor(max_workers=num_workers) as ex:

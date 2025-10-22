@@ -1,7 +1,7 @@
 from numpy import log2, logspace
 from dataclasses import dataclass, fields, Field, field, asdict
 from json import dumps, load, dump
-from typing import Any, Literal, get_args, cast
+from typing import Any, Literal, get_args
 
 from interactive_seg_backend.configs.types import (
     PossibleFeatures,
@@ -157,7 +157,6 @@ class FeatureConfig:
                 name = cls_field.name
                 if name not in FEATURES:
                     continue
-                name = cast(PossibleFeatures, name)
 
                 is_enabled = self.__getattribute__(name)
                 if not is_enabled:
@@ -207,7 +206,10 @@ class CRFParams:
 
 
 default_crf_params = CRFParams()
-KEYS_TO_CLASSES = {"feature_config": FeatureConfig, "CRF_params": CRFParams}
+KEYS_TO_CLASSES: dict[str, Any] = {
+    "feature_config": FeatureConfig,
+    "CRF_params": CRFParams,
+}
 
 
 @dataclass
@@ -219,7 +221,7 @@ class TrainingConfig:
     classifier: ClassifierNames = "random_forest"
     # `classifier_params` are any addtional params passed to classifier init (i.e tree_depth etc)
     # we need field(default_factory) as dicts are mutable and therefore can't be dataclass default args
-    classifier_params: dict[str, Any] = field(default_factory=dict)
+    classifier_params: dict[str, Any] = field(default_factory=dict[str, Any])
 
     balance_classes: bool = True
     shuffle_data: bool = True
@@ -269,7 +271,7 @@ def load_training_config_json(
     for key, value in json_obj.items():
         if key in key_to_dataclass:
             dataclass_def = key_to_dataclass[key]
-            res[key] = dataclass_def(**value)
+            res[key] = dataclass_def(**value)  # type: ignore
         else:
             res[key] = value
     return TrainingConfig(**res)
