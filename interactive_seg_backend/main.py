@@ -34,7 +34,10 @@ from interactive_seg_backend.core import (
     featurise_,
     train_and_apply_,
 )
-from interactive_seg_backend.extensions.crf import do_crf_from_probabilites, CRF_AVAILABLE
+from interactive_seg_backend.extensions.crf import (
+    do_crf_from_probabilites,
+    CRF_AVAILABLE,
+)
 from interactive_seg_backend.processing.postprocess import modal_filter
 
 

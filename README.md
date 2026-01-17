@@ -47,7 +47,7 @@ uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-
 ```
 
 ```bash
-uv sync --all-extras 
+uv sync --all-extras
 uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
@@ -59,6 +59,7 @@ python -m cProfile -s tottime interactive_seg_backend/features/multiscale_classi
 ```
 
 ## Tests
+
 Requires the pytest package (`pip install '.[test]'`)
 
 ```bash
@@ -82,9 +83,11 @@ pip install . --no-cache-dir --no-index
 ```
 
 ## TODO:
+
 - logging
 - docstrings
 - make typing story more compelling:
+
   - helper typesafe functions?
   - pydantic?
   - actually make the main functions able to take in tensors or arrays
@@ -95,6 +98,5 @@ pip install . --no-cache-dir --no-index
     - pass down things you care about i.e sample weights into train / train and apply
 
 - improvements: fixed vf, rules (connectivity) ?
+- try to adapt kornia filter code w/out importing the whole thing ()
 - applying: patched, 3D (+ average), all with memory consideration (caching)
-
-

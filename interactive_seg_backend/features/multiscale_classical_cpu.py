@@ -97,9 +97,7 @@ def singlescale_edges(
     return np.sqrt(g_x**2 + g_y**2)
 
 
-def singlescale_hessian(
-    gaussian_filtered: FloatArr, return_full: bool = True
-) -> tuple[FloatArr, ...]:
+def singlescale_hessian(gaussian_filtered: FloatArr, return_full: bool = True) -> tuple[FloatArr, ...]:
     """Compute mod, trace, det and eigenvalues of Hessian matrix of $gaussian_filtered image (i.e for every pixel).
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -288,9 +286,7 @@ def membrane_projections(
     x1 = 1 + membrane_patch_size // 2 + membrane_thickness // 2
     kernel[:, x0:x1] = 1
 
-    all_kernels = [
-        np.rint(rotate_ts(kernel, angle, reshape=False)) for angle in range(0, 180, 6)
-    ]
+    all_kernels = [np.rint(rotate_ts(kernel, angle, reshape=False)) for angle in range(0, 180, 6)]
     # map these across threads to speed up (order unimportant)
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
         out_angles: list[npt.NDArray[np.float32]] = list(
@@ -318,9 +314,7 @@ def singlescale_singlechannel_features(
     sigma: int,
     config: FeatureConfig,
 ) -> list[Arr]:
-    assert len(img.shape) == 2, (
-        f"img shape {img.shape} wrong, should be 2D/singlechannel"
-    )
+    assert len(img.shape) == 2, f"img shape {img.shape} wrong, should be 2D/singlechannel"
     results: list[Arr] = []
     mult = 0.4 if config.add_weka_sigma_multiplier else 1
     gaussian_filtered = singlescale_gaussian(img, sigma, mult)
@@ -329,9 +323,7 @@ def singlescale_singlechannel_features(
     if config.sobel_filter:
         results.append(singlescale_edges(gaussian_filtered))
     if config.hessian_filter:
-        hessian_out = singlescale_hessian(
-            gaussian_filtered, config.add_mod_trace_det_hessian
-        )
+        hessian_out = singlescale_hessian(gaussian_filtered, config.add_mod_trace_det_hessian)
         results += hessian_out
 
     circle_footprint = make_footprint(int(np.ceil(sigma)))
@@ -477,10 +469,16 @@ if __name__ == "__main__":
     cfg = FeatureConfig(
         name="no_cast",
         membrane_projections=False,
-        bilateral=True,
+        bilateral=False,
         cast_to="f32",
+        sigmas=[1],
+        sobel_filter=False,
+        hessian_filter=False,
+        difference_of_gaussians=False,
+        add_mod_trace_det_hessian=False,
+        add_zero_scale_features=False,
     )
-    img = (np.random.uniform(0, 1.0, (500, 500)) * 255).astype(np.uint8)
+    img = (np.random.uniform(0, 1.0, (3624, 2448)) * 255).astype(np.uint8)
     start = time()
     feats = multiscale_features(img, cfg, num_workers=N_ALLOWED_CPUS)
     end = time()

@@ -36,9 +36,7 @@ if TYPE_CHECKING:
     )
 
 
-def prepare_for_gpu(
-    arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype" = torch.float32
-) -> "torch.Tensor":
+def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype" = torch.float32) -> "torch.Tensor":
     ndims = len(arr.shape)
     if ndims == 2:
         arr = np.expand_dims(arr, (0, 1))  # (H, W) -> (1, 1, H, W)
@@ -70,9 +68,7 @@ def concat_feats(arr1: Arrlike, arr2: Arrlike) -> Arrlike:
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
-def singlescale_gaussian(
-    img: torch.Tensor, sigma: int, mult: float = 1.0
-) -> "torch.Tensor":
+def singlescale_gaussian(img: torch.Tensor, sigma: int, mult: float = 1.0) -> "torch.Tensor":
     s = int(mult * sigma)
     out = gaussian_blur2d(img, kernel_size=(2 * s + 1, 2 * s + 1), sigma=(s, s))
     return out
@@ -89,9 +85,7 @@ def get_multiscale_gaussian_kernel(
     N = len(sigmas)
     max_s = max(sigmas)
     max_k = 4 * int(max_s * mult) + 1
-    filters = torch.zeros(
-        (N, 1, max_k, max_k), dtype=dtype, device=device, requires_grad=False
-    )
+    filters = torch.zeros((N, 1, max_k, max_k), dtype=dtype, device=device, requires_grad=False)
     for i, sigma in enumerate(sigmas):
         filters[i, :, :, :] = get_gaussian_kernel2d(
             (max_k, max_k), (sigma * mult, sigma * mult), device=device, dtype=dtype
@@ -100,9 +94,7 @@ def get_multiscale_gaussian_kernel(
     return filters
 
 
-def get_sobel_kernel(
-    device: torch.device, dtype: torch.dtype, n_channels: int
-) -> "torch.Tensor":
+def get_sobel_kernel(device: torch.device, dtype: torch.dtype, n_channels: int) -> "torch.Tensor":
     g_y = torch.tensor(
         [[1, 0, -1], [2, 0, -2], [1, 0, -1]],
         dtype=dtype,
@@ -140,9 +132,7 @@ def reflect_padded(func):  # type: ignore
 
 
 @reflect_padded
-def convolve(
-    img: torch.Tensor, kernel: torch.Tensor, norm: bool = False
-) -> "torch.Tensor":
+def convolve(img: torch.Tensor, kernel: torch.Tensor, norm: bool = False) -> "torch.Tensor":
     _, in_ch, _, _ = img.shape
     if norm:
         summand = torch.sum(torch.abs(kernel), dim=(2, 3), keepdim=True)
@@ -160,9 +150,7 @@ def get_gradient_mag(edges: "torch.Tensor") -> "torch.Tensor":
     return torch.sqrt((g_x**2 + g_y**2))
 
 
-def singescale_hessian(
-    dx_dy: "torch.Tensor", sobel_kernel: "torch.Tensor", return_full: bool = True
-) -> "torch.Tensor":
+def singescale_hessian(dx_dy: "torch.Tensor", sobel_kernel: "torch.Tensor", return_full: bool = True) -> "torch.Tensor":
     """_summary_
 
     :param dx_dy: (B, 2, H, W) first derivatives from sobel
@@ -243,9 +231,7 @@ def bilateral(img: "torch.Tensor") -> "torch.Tensor":
     return torch.cat(bilaterals, dim=1)
 
 
-def difference_of_gaussians(
-    gaussian_blurs: torch.Tensor, N_sigmas: int
-) -> "torch.Tensor":
+def difference_of_gaussians(gaussian_blurs: torch.Tensor, N_sigmas: int) -> "torch.Tensor":
     diff_list: list[torch.Tensor] = []
     for i in range(N_sigmas):
         sigma_1 = gaussian_blurs[0:1, i::N_sigmas]
@@ -269,23 +255,16 @@ def get_membrane_proj_kernel(
     x1 = 1 + membrane_patch_size // 2 + membrane_thickness // 2
     kernel[:, x0:x1] = 1
 
-    all_kernels = [
-        np.rint(rotate_ts(kernel, angle, reshape=False))
-        for angle in range(0, 180, angle_increment_deg)
-    ]
+    all_kernels = [np.rint(rotate_ts(kernel, angle, reshape=False)) for angle in range(0, 180, angle_increment_deg)]
     kernel_np = np.stack(all_kernels)
-    kernel_torch = torch.tensor(
-        kernel_np, device=device, dtype=dtype, requires_grad=False
-    )
+    kernel_torch = torch.tensor(kernel_np, device=device, dtype=dtype, requires_grad=False)
     filters = kernel_torch.unsqueeze(1)
     filters = torch.tile(filters, (n_channels, 1, 1, 1))
 
     return filters
 
 
-def membrane_projections(
-    img: torch.Tensor, kernel: torch.Tensor, N_ch: int
-) -> "torch.Tensor":
+def membrane_projections(img: torch.Tensor, kernel: torch.Tensor, N_ch: int) -> "torch.Tensor":
     # TODO: most other gpu filters work with N-channel imgs s.t slicing the output stack
     # by every N you'll get the stack for the Nth channel - this does not work like that
     projs = convolve(img, kernel, False)
@@ -294,24 +273,12 @@ def membrane_projections(
 
     projections_out: list[torch.Tensor] = []
     for i in range(N_ch):
-        sum_proj = torch.sum(
-            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
-        )
-        mean_proj = torch.mean(
-            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
-        )
-        std_proj = torch.std(
-            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
-        )
-        median_proj, _ = torch.median(
-            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
-        )
-        max_proj = torch.amax(
-            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
-        )
-        min_proj = torch.amin(
-            projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1
-        )
+        sum_proj = torch.sum(projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1)
+        mean_proj = torch.mean(projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1)
+        std_proj = torch.std(projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1)
+        median_proj, _ = torch.median(projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1)
+        max_proj = torch.amax(projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1)
+        min_proj = torch.amin(projs[0:1, i * projs_per_ch : (i + 1) * projs_per_ch], dim=1)
         projections_out += [
             mean_proj,
             max_proj,
@@ -361,9 +328,7 @@ def multiscale_features_gpu(
     sobel_kernel = get_sobel_kernel(device, dtype, C)
     sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
 
-    membrane_kernel = get_membrane_proj_kernel(
-        device, dtype, C, config.membrane_patch_size, config.membrane_thickness
-    )
+    membrane_kernel = get_membrane_proj_kernel(device, dtype, C, config.membrane_patch_size, config.membrane_thickness)
 
     gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
 
@@ -390,9 +355,7 @@ def multiscale_features_gpu(
         if config.sobel_filter:
             features.append(get_gradient_mag(edges))
         if config.hessian_filter:
-            hess = singescale_hessian(
-                edges, sobel_squared, config.add_mod_trace_det_hessian
-            )
+            hess = singescale_hessian(edges, sobel_squared, config.add_mod_trace_det_hessian)
             features.append(hess)
 
         if config.mean:
@@ -445,9 +408,7 @@ if __name__ == "__main__":
         use_gpu=True,
     )
     n_ch = 3
-    img = torch.rand(
-        (1, n_ch, 400, 400), device=device, dtype=torch.float16, requires_grad=False
-    )
+    img = torch.rand((1, 3, 750, 750), device=device, dtype=torch.float16, requires_grad=False)
 
     start = time()
     torch.cuda.synchronize()

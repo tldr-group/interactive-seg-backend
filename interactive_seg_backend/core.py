@@ -10,6 +10,7 @@ from interactive_seg_backend.features import (
     multiscale_features,
     multiscale_features_gpu,
     prepare_for_gpu,
+    N_ALLOWED_CPUS,
 )
 from interactive_seg_backend.configs.types import (
     AnyArr,
@@ -99,6 +100,9 @@ def shuffle_sample_training_data(
 
 
 def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: bool = False) -> Classifier:
+    if model_type in ["random_forest", "logistic_regression", "linear_regression"]:
+        extra_args["n_jobs"] = N_ALLOWED_CPUS
+
     if model_type == "random_forest":
         return RandomForest(extra_args)
     elif model_type == "logistic_regression":
