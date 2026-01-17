@@ -1,9 +1,9 @@
 import numpy as np
 
-from typing import cast, TYPE_CHECKING
+from typing import Callable, Any, cast, TYPE_CHECKING
 from time import time
 
-from interactive_seg_backend.configs import FeatureConfig, Arrlike
+from interactive_seg_backend.configs import FeatureConfig, Array
 from interactive_seg_backend.utils import rotate_ts
 
 
@@ -49,7 +49,7 @@ def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype
     return tensor
 
 
-def concat_feats(arr1: Arrlike, arr2: Arrlike) -> Arrlike:
+def concat_feats(arr1: Array, arr2: Array) -> Array:
     # (optionally) cast to tensors and concatenate arrays
     if isinstance(arr1, torch.Tensor) and isinstance(arr2, torch.Tensor):
         res = torch.concatenate((arr1, arr2), dim=-1)
@@ -64,19 +64,19 @@ def concat_feats(arr1: Arrlike, arr2: Arrlike) -> Arrlike:
     else:
         raise Exception(f"Invalid feat types: {type(arr1)} + {type(arr2)}")
 
-    return cast(Arrlike, res)
+    return cast(Array, res)
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
-def singlescale_gaussian(img: torch.Tensor, sigma: int, mult: float = 1.0) -> "torch.Tensor":
+def singlescale_gaussian(img: "torch.Tensor", sigma: int, mult: float = 1.0) -> "torch.Tensor":
     s = int(mult * sigma)
     out = gaussian_blur2d(img, kernel_size=(2 * s + 1, 2 * s + 1), sigma=(s, s))
     return out
 
 
 def get_multiscale_gaussian_kernel(
-    device: torch.device,
-    dtype: torch.dtype,
+    device: "torch.device",
+    dtype: "torch.dtype",
     sigmas: tuple[float, ...],
     n_channels: int,
     mult: float = 1.0,
@@ -94,7 +94,7 @@ def get_multiscale_gaussian_kernel(
     return filters
 
 
-def get_sobel_kernel(device: torch.device, dtype: torch.dtype, n_channels: int) -> "torch.Tensor":
+def get_sobel_kernel(device: "torch.device", dtype: "torch.dtype", n_channels: int) -> "torch.Tensor":
     g_y = torch.tensor(
         [[1, 0, -1], [2, 0, -2], [1, 0, -1]],
         dtype=dtype,
@@ -114,25 +114,25 @@ def get_sobel_kernel(device: torch.device, dtype: torch.dtype, n_channels: int) 
     return filters
 
 
-def reflect_padded(func):  # type: ignore
+def reflect_padded(func: Callable[..., "torch.Tensor"]) -> Callable[..., "torch.Tensor"]:
     def wrapper(
-        tensor: torch.Tensor,
-        sigma_or_kernel: int | torch.Tensor,
-        *args,  # type: ignore
-        **kwargs,  # type: ignore
+        tensor: "torch.Tensor",
+        sigma_or_kernel: "int | torch.Tensor",
+        *args: tuple[Any, ...],
+        **kwargs: dict[str, Any],
     ) -> "torch.Tensor":
         if isinstance(sigma_or_kernel, torch.Tensor):
             _, _, kh, kw = sigma_or_kernel.shape
         else:
             kh, kw = 2 * sigma_or_kernel + 1, 2 * sigma_or_kernel + 1
         padded = pad(tensor, (kw // 2, kw // 2, kh // 2, kh // 2), mode="reflect")
-        return func(padded, sigma_or_kernel, *args, **kwargs)  # type: ignore
+        return func(padded, sigma_or_kernel, *args, **kwargs)
 
     return wrapper
 
 
 @reflect_padded
-def convolve(img: torch.Tensor, kernel: torch.Tensor, norm: bool = False) -> "torch.Tensor":
+def convolve(img: "torch.Tensor", kernel: "torch.Tensor", norm: bool = False) -> "torch.Tensor":
     _, in_ch, _, _ = img.shape
     if norm:
         summand = torch.sum(torch.abs(kernel), dim=(2, 3), keepdim=True)
@@ -185,32 +185,32 @@ def singescale_hessian(dx_dy: "torch.Tensor", sobel_kernel: "torch.Tensor", retu
 
 
 @reflect_padded
-def singlescale_mean(img: torch.Tensor, sigma: int) -> "torch.Tensor":
+def singlescale_mean(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
     k = 2 * sigma + 1
     out = avg_pool2d(img, k, 1, ceil_mode=True)
     return out
 
 
 @reflect_padded
-def singlescale_maximum(img: torch.Tensor, sigma: int) -> "torch.Tensor":
+def singlescale_maximum(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
     k = 2 * sigma + 1
     out = max_pool2d(img, k, 1, ceil_mode=True)
     return out
 
 
 @reflect_padded
-def singlescale_minimum(img: torch.Tensor, sigma: int) -> "torch.Tensor":
+def singlescale_minimum(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
     k = 2 * sigma + 1
     out = -max_pool2d(-img, k, 1, ceil_mode=True)
     return out
 
 
-def singlescale_median(img: torch.Tensor, sigma: int) -> "torch.Tensor":
+def singlescale_median(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
     k = 2 * sigma + 1
     return median_blur(img, k)
 
 
-def singlescale_laplacian(img: torch.Tensor, sigma: int) -> "torch.Tensor":
+def singlescale_laplacian(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
     k = 2 * sigma + 1
     return laplacian(img, (k, k))
 
@@ -231,7 +231,7 @@ def bilateral(img: "torch.Tensor") -> "torch.Tensor":
     return torch.cat(bilaterals, dim=1)
 
 
-def difference_of_gaussians(gaussian_blurs: torch.Tensor, N_sigmas: int) -> "torch.Tensor":
+def difference_of_gaussians(gaussian_blurs: "torch.Tensor", N_sigmas: int) -> "torch.Tensor":
     diff_list: list[torch.Tensor] = []
     for i in range(N_sigmas):
         sigma_1 = gaussian_blurs[0:1, i::N_sigmas]
@@ -243,8 +243,8 @@ def difference_of_gaussians(gaussian_blurs: torch.Tensor, N_sigmas: int) -> "tor
 
 
 def get_membrane_proj_kernel(
-    device: torch.device,
-    dtype: torch.dtype,
+    device: "torch.device",
+    dtype: "torch.dtype",
     n_channels: int,
     membrane_patch_size: int = 17,
     membrane_thickness: int = 1,
@@ -264,7 +264,7 @@ def get_membrane_proj_kernel(
     return filters
 
 
-def membrane_projections(img: torch.Tensor, kernel: torch.Tensor, N_ch: int) -> "torch.Tensor":
+def membrane_projections(img: "torch.Tensor", kernel: "torch.Tensor", N_ch: int) -> "torch.Tensor":
     # TODO: most other gpu filters work with N-channel imgs s.t slicing the output stack
     # by every N you'll get the stack for the Nth channel - this does not work like that
     projs = convolve(img, kernel, False)
@@ -292,16 +292,16 @@ def membrane_projections(img: torch.Tensor, kernel: torch.Tensor, N_ch: int) -> 
 
 
 def zero_scale_filters(
-    img: torch.Tensor,
-    sobel_kernel: torch.Tensor,
-    sobel_squared_kernel: torch.Tensor,
+    img: "torch.Tensor",
+    sobel_kernel: "torch.Tensor",
+    sobel_squared_kernel: "torch.Tensor",
     sobel_filter: bool = True,
     hessian_filter: bool = True,
     add_mod_trace: bool = True,
-) -> list[torch.Tensor]:
+) -> list["torch.Tensor"]:
     """Weka *always* adds the original image, and if computing edgees and/or hessian,
     adds those for sigma=0. This function does that."""
-    out_filtered: list[torch.Tensor] = [img]
+    out_filtered: list["torch.Tensor"] = [img]
     edges = convolve(img, sobel_kernel, True)
     if sobel_filter:
         out_filtered.append(get_gradient_mag(edges))
@@ -313,7 +313,7 @@ def zero_scale_filters(
 
 @torch.no_grad()
 def multiscale_features_gpu(
-    raw_img: torch.Tensor,
+    raw_img: "torch.Tensor",
     config: FeatureConfig,
     reshape_squeeze: bool = True,
 ) -> "torch.Tensor":
@@ -332,7 +332,7 @@ def multiscale_features_gpu(
 
     gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
 
-    features: list[torch.Tensor]
+    features: list["torch.Tensor"]
     if config.add_zero_scale_features:
         features = zero_scale_filters(
             converted_img,
@@ -398,17 +398,17 @@ if __name__ == "__main__":
         name="default",
         cast_to="f16",
         add_zero_scale_features=True,
-        hessian_filter=True,
-        sobel_filter=True,
-        membrane_projections=True,
-        difference_of_gaussians=True,
-        mean=True,
-        minimum=True,
-        maximum=True,
+        hessian_filter=False,
+        sobel_filter=False,
+        membrane_projections=False,
+        difference_of_gaussians=False,
+        mean=False,
+        minimum=False,
+        maximum=False,
         use_gpu=True,
     )
     n_ch = 3
-    img = torch.rand((1, 3, 750, 750), device=device, dtype=torch.float16, requires_grad=False)
+    img = torch.rand((1, 1, 1500, 1500), device=device, dtype=torch.float16, requires_grad=False)
 
     start = time()
     torch.cuda.synchronize()

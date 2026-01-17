@@ -4,6 +4,11 @@ __all__ = [
     "TrainingConfig",
     "load_training_config_json",
     "FloatArr",
+    "NPFloatArray",
+    "IntArr",
+    "NPIntArray",
+    "NPUIntArray",
+    "Array",
     "UInt8Arr",
     "IntArr",
     "Arr",
@@ -12,4 +17,16 @@ __all__ = [
     "UInt8Arrlike",
 ]
 from .config import FeatureConfig, TrainingConfig, CRFParams, load_training_config_json
-from .types import FloatArr, UInt8Arr, IntArr, Arr, AnyArr, Arrlike, UInt8Arrlike
+from .types import (
+    FloatArr,
+    NPFloatArray,
+    IntArr,
+    NPIntArray,
+    NPUIntArray,
+    Array,
+    UInt8Arr,
+    Arr,
+    AnyArr,
+    Arrlike,
+    UInt8Arrlike,
+)

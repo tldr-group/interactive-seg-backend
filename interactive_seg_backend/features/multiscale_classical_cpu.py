@@ -19,10 +19,10 @@ import numpy as np
 import numpy.typing as npt
 
 from skimage import filters
-from skimage.draw import disk  # type: ignore[import]
-from skimage.feature import structure_tensor, structure_tensor_eigenvalues  # type: ignore[import]
-from scipy.ndimage import convolve  # type: ignore[import]
-from skimage.util.dtype import img_as_float32  # type: ignore[import]
+from skimage.draw import disk
+from skimage.feature import structure_tensor, structure_tensor_eigenvalues
+from scipy.ndimage import convolve
+from skimage.util.dtype import img_as_float32
 
 from itertools import combinations_with_replacement
 from itertools import chain
@@ -30,10 +30,12 @@ from itertools import chain
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
-from interactive_seg_backend.configs import FeatureConfig, FloatArr, Arr
+from interactive_seg_backend.configs.config import FeatureConfig
+from interactive_seg_backend.configs.types import NPFloatArray, NPUIntArray
 from interactive_seg_backend.utils import gaussian_ts, rotate_ts
 
 from time import time
+from collections.abc import Sequence
 from typing import Literal, cast
 
 
@@ -45,7 +47,7 @@ print(f"N CPUS: {N_ALLOWED_CPUS}")
 
 
 # %% ===================================HELPER FUNCTIONS===================================
-def make_footprint(sigma: int) -> npt.NDArray[np.uint8]:
+def make_footprint(sigma: int) -> NPUIntArray:
     """Return array of zeros with centreed circle of radius sigma set to 1.
 
     :param sigma: radius of footprint
@@ -65,7 +67,7 @@ def make_footprint(sigma: int) -> npt.NDArray[np.uint8]:
 # %% ===================================SINGLESCALE FEATURES===================================
 
 
-def singlescale_gaussian(img: FloatArr, sigma: int, mult: float = 1.0) -> FloatArr:
+def singlescale_gaussian(img: NPFloatArray, sigma: int, mult: float = 1.0) -> NPFloatArray:
     """Gaussian blur of each pixel in $img of scale/radius $sigma.
 
     :param img: img arr
@@ -83,8 +85,8 @@ def singlescale_gaussian(img: FloatArr, sigma: int, mult: float = 1.0) -> FloatA
 
 
 def singlescale_edges(
-    gaussian_filtered: FloatArr,
-) -> FloatArr:
+    gaussian_filtered: NPFloatArray,
+) -> NPFloatArray:
     """Sobel filter applied to gaussian filtered arr of scale sigma to detect edges.
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -97,7 +99,7 @@ def singlescale_edges(
     return np.sqrt(g_x**2 + g_y**2)
 
 
-def singlescale_hessian(gaussian_filtered: FloatArr, return_full: bool = True) -> tuple[FloatArr, ...]:
+def singlescale_hessian(gaussian_filtered: NPFloatArray, return_full: bool = True) -> tuple[NPFloatArray, ...]:
     """Compute mod, trace, det and eigenvalues of Hessian matrix of $gaussian_filtered image (i.e for every pixel).
 
     :param gaussian_filtered: img array (that has optionally been gaussian blurred)
@@ -125,9 +127,7 @@ def singlescale_hessian(gaussian_filtered: FloatArr, return_full: bool = True) -
         return (eig1 / 2.0, eig2 / 2.0)
 
 
-def singlescale_mean(
-    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
-) -> npt.NDArray[np.uint8]:
+def singlescale_mean(byte_img: NPUIntArray, sigma_rad_footprint: NPUIntArray) -> NPUIntArray:
     """Mean pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
 
     :param byte_img: img arr in uint8 format
@@ -137,13 +137,11 @@ def singlescale_mean(
     :return: mean filtered img
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.uint8] = filters.rank.mean(byte_img, sigma_rad_footprint)  # type: ignore
-    return out
+    out = filters.rank.mean(byte_img, sigma_rad_footprint)
+    return cast(NPUIntArray, out)
 
 
-def singlescale_median(
-    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
-) -> npt.NDArray[np.uint8]:
+def singlescale_median(byte_img: NPUIntArray, sigma_rad_footprint: NPUIntArray) -> NPUIntArray:
     """Median pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
 
     :param byte_img: img arr in uint8 format
@@ -153,12 +151,11 @@ def singlescale_median(
     :return: mean filtered img
     :rtype: np.ndarray
     """
-    return filters.rank.median(byte_img, sigma_rad_footprint)  # type: ignore
+    out = filters.rank.median(byte_img, sigma_rad_footprint)
+    return cast(NPUIntArray, out)
 
 
-def singlescale_maximum(
-    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
-) -> npt.NDArray[np.uint8]:
+def singlescale_maximum(byte_img: NPUIntArray, sigma_rad_footprint: NPUIntArray) -> NPUIntArray:
     """maximum pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
 
     :param byte_img: img arr in uint8 format
@@ -168,13 +165,11 @@ def singlescale_maximum(
     :return: maximum filtered img
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.uint8] = filters.rank.maximum(byte_img, sigma_rad_footprint)  # type: ignore
-    return out
+    out = filters.rank.maximum(byte_img, sigma_rad_footprint)
+    return cast(NPUIntArray, out)
 
 
-def singlescale_minimum(
-    byte_img: npt.NDArray[np.uint8], sigma_rad_footprint: npt.NDArray[np.uint8]
-) -> npt.NDArray[np.uint8]:
+def singlescale_minimum(byte_img: NPUIntArray, sigma_rad_footprint: NPUIntArray) -> NPUIntArray:
     """maximum pixel intensity over footprint $sigma_rad_footprint. Needs img in np.uint8 format.
 
     :param byte_img: img arr in uint8 format
@@ -184,11 +179,11 @@ def singlescale_minimum(
     :return: minimum filtered img
     :rtype: np.ndarray
     """
-    out: npt.NDArray[np.uint8] = filters.rank.minimum(byte_img, sigma_rad_footprint)  # type: ignore
-    return out
+    out = filters.rank.minimum(byte_img, sigma_rad_footprint)
+    return cast(NPUIntArray, out)
 
 
-def singlescale_structure_tensor(img: FloatArr, sigma: int) -> tuple[FloatArr, ...]:
+def singlescale_structure_tensor(img: NPFloatArray, sigma: int) -> tuple[NPFloatArray, ...]:
     """Compute structure tensor eigenvalues of $img in $sigma radius.
 
     :param img: img arr
@@ -198,12 +193,12 @@ def singlescale_structure_tensor(img: FloatArr, sigma: int) -> tuple[FloatArr, .
     :return: largest two eigenvalues of structure tensor at each pixel
     :rtype: np.ndarray
     """
-    tensor: list[FloatArr] = structure_tensor(img, sigma)  # type: ignore
-    eigvals: FloatArr = structure_tensor_eigenvalues(tensor)
+    tensor: Sequence[NPFloatArray] = structure_tensor(img, sigma)
+    eigvals: NPFloatArray = structure_tensor_eigenvalues(tensor)
     return (eigvals[0], eigvals[1])
 
 
-def singlescale_laplacian(img: FloatArr) -> FloatArr:
+def singlescale_laplacian(img: NPFloatArray) -> NPFloatArray:
     """Compute laplacian of $img on scale $simga. Not currently working.
 
     :param img: img arr
@@ -213,11 +208,12 @@ def singlescale_laplacian(img: FloatArr) -> FloatArr:
     :return: laplacian filtered img arr
     :rtype: np.ndarray
     """
-    return filters.laplace(img)  # type: ignore
+    out = filters.laplace(img)
+    return cast(NPFloatArray, out)
 
 
 # # %% ===================================SCALE-FREE FEATURES===================================
-def bilateral(byte_img: npt.NDArray[np.uint8]) -> list[npt.NDArray[np.uint8]]:
+def bilateral(byte_img: NPUIntArray) -> list[NPUIntArray]:
     """For $sigma in [5, 10], for $value_range in [50, 100],
         compute mean of pixels in $sigma radius inside $value_range window for each pixel.
 
@@ -226,20 +222,19 @@ def bilateral(byte_img: npt.NDArray[np.uint8]) -> list[npt.NDArray[np.uint8]]:
     :return: bilateral filtered arrs stacked in a single np array
     :rtype: np.ndarray
     """
-    bilaterals: list[npt.NDArray[np.uint8]] = []
+    bilaterals: list[NPUIntArray] = []
     for spatial_radius in (5, 10):
         footprint = make_footprint(spatial_radius)
         for value_range in (50, 100):  # check your pixels are [0, 255]
-            filtered: npt.NDArray[np.uint8] = filters.rank.mean_bilateral(  # type: ignore
-                byte_img, footprint, s0=value_range, s1=value_range
-            )
+            out = filters.rank.mean_bilateral(byte_img, footprint, s0=value_range, s1=value_range)
+            filtered = cast(NPUIntArray, out)
             bilaterals.append(filtered)
     return bilaterals
 
 
 def difference_of_gaussians(
-    gaussian_blurs: list[FloatArr],
-) -> list[FloatArr]:
+    gaussian_blurs: list[NPFloatArray],
+) -> list[NPFloatArray]:
     """Compute their difference of each arr in $gaussian_blurs (representing different $sigma scales) with smaller arrs.
 
     :param gaussian_blurs: list of arrs of img filtered with gaussian blur at different length scales
@@ -248,7 +243,7 @@ def difference_of_gaussians(
     :rtype: List[np.ndarray]
     """
     # weka computes dog for  each filter of a *lower* sigma
-    dogs: list[FloatArr] = []
+    dogs: list[NPFloatArray] = []
     for i in range(len(gaussian_blurs)):
         sigma_1 = gaussian_blurs[i]
         for j in range(i):
@@ -258,11 +253,11 @@ def difference_of_gaussians(
 
 
 def membrane_projections(
-    img: FloatArr,
+    img: NPFloatArray,
     membrane_patch_size: int = 19,
     membrane_thickness: int = 1,
     num_workers: int | None = N_ALLOWED_CPUS,
-) -> list[FloatArr]:
+) -> list[NPFloatArray]:
     """Membrane projections.
 
     Create a $membrane_patch_size^2 array with $membrane_thickness central columns set to 1, other entries set to 0.
@@ -289,9 +284,9 @@ def membrane_projections(
     all_kernels = [np.rint(rotate_ts(kernel, angle, reshape=False)) for angle in range(0, 180, 6)]
     # map these across threads to speed up (order unimportant)
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
-        out_angles: list[npt.NDArray[np.float32]] = list(
+        out_angles: Sequence[NPFloatArray] = list(
             ex.map(
-                lambda k: convolve(img, k),  # type: ignore
+                lambda k: convolve(img, k),
                 all_kernels,
             )
         )
@@ -309,13 +304,13 @@ def membrane_projections(
 
 
 def singlescale_singlechannel_features(
-    img: FloatArr,
-    byte_img: npt.NDArray[np.uint8],
+    img: NPFloatArray,
+    byte_img: NPUIntArray,
     sigma: int,
     config: FeatureConfig,
-) -> list[Arr]:
+) -> list[np.ndarray]:
     assert len(img.shape) == 2, f"img shape {img.shape} wrong, should be 2D/singlechannel"
-    results: list[Arr] = []
+    results: list[np.ndarray] = []
     mult = 0.4 if config.add_weka_sigma_multiplier else 1
     gaussian_filtered = singlescale_gaussian(img, sigma, mult)
     if config.gaussian_blur:
@@ -347,14 +342,14 @@ def singlescale_singlechannel_features(
 
 
 def zero_scale_filters(
-    img: FloatArr,
+    img: NPFloatArray,
     sobel_filter: bool = True,
     hessian_filter: bool = True,
     add_mod_trace: bool = True,
-) -> list[Arr]:
+) -> list[np.ndarray]:
     """Weka *always* adds the original image, and if computing edgees and/or hessian,
     adds those for sigma=0. This function does that."""
-    out_filtered: list[Arr] = [img]
+    out_filtered: list[np.ndarray] = [img]
     if sobel_filter:
         edges = singlescale_edges(img)
         out_filtered.append(edges)
@@ -365,15 +360,13 @@ def zero_scale_filters(
 
 
 def multiscale_singlechannel(
-    raw_img: Arr,
+    raw_img: np.ndarray,
     config: FeatureConfig,
     num_workers: int | None = None,
-) -> FloatArr:
+) -> NPFloatArray:
     byte_img = raw_img.astype(np.uint8)
-    converted_img: FloatArr = np.ascontiguousarray(
-        img_as_float32(raw_img)  # type: ignore
-    )
-    features: list[Arr]
+    converted_img: NPFloatArray = np.ascontiguousarray(img_as_float32(raw_img))
+    features: list[NPFloatArray | NPUIntArray]
     if config.add_zero_scale_features:
         features = zero_scale_filters(
             converted_img,
@@ -385,22 +378,24 @@ def multiscale_singlechannel(
         features = []
 
     with ThreadPoolExecutor(max_workers=num_workers) as ex:
+
+        def _helper(sigma: int) -> list[np.ndarray]:
+            return singlescale_singlechannel_features(converted_img, byte_img, sigma, config)
+
         out_sigmas = list(
             ex.map(
-                lambda sigma: singlescale_singlechannel_features(  # type: ignore
-                    converted_img, byte_img, sigma, config
-                ),
+                _helper,
                 config.sigmas,
             )
         )
 
     multiscale_features = chain.from_iterable(out_sigmas)
-    features += list(multiscale_features)  # type: ignore
+    features += list(multiscale_features)
 
     if config.difference_of_gaussians:
-        intensities: list[FloatArr] = []
+        intensities: list[NPFloatArray] = []
         for i in range(len(config.sigmas)):
-            gaussian_blur_at_sigma: FloatArr = out_sigmas[i][0]  # type: ignore
+            gaussian_blur_at_sigma: NPFloatArray = out_sigmas[i][0]
             intensities.append(gaussian_blur_at_sigma)
         dogs = difference_of_gaussians(intensities)
         features += dogs
@@ -418,7 +413,7 @@ def multiscale_singlechannel(
         bilateral_filtered = bilateral(byte_img)
         features += bilateral_filtered
 
-    features_np: Arr = np.stack(features, axis=-1)  # type: ignore
+    features_np: np.ndarray = np.stack(features, axis=-1)
     if config.cast_to == "f16":
         features_np = features_np.astype(np.float16)
     elif config.cast_to == "f64":
@@ -429,11 +424,11 @@ def multiscale_singlechannel(
 
 
 def multiscale_features(
-    raw_img: Arr,
+    raw_img: np.ndarray,
     config: FeatureConfig,
     num_workers: int | None = None,
-) -> FloatArr:
-    out: list[FloatArr] = []
+) -> NPFloatArray:
+    out: list[NPFloatArray] = []
     n_dims = len(raw_img.shape)
     # (H, W)
     if n_dims == 2:
@@ -457,28 +452,28 @@ def multiscale_features(
 
     for channel in range(n_ch):
         slice_arr = correct_channel_img[:, :, channel]
-        slice_arr = cast(Arr, slice_arr)
+        slice_arr = cast(NPFloatArray, slice_arr)
         slice_feats = multiscale_singlechannel(slice_arr, config, num_workers)
         out.append(slice_feats)
     stacked = np.concatenate(out, axis=-1)
-    stacked = cast(FloatArr, stacked)
+    stacked = cast(NPFloatArray, stacked)
     return stacked
 
 
 if __name__ == "__main__":
     cfg = FeatureConfig(
         name="no_cast",
-        membrane_projections=False,
+        membrane_projections=True,
         bilateral=False,
         cast_to="f32",
-        sigmas=[1],
-        sobel_filter=False,
-        hessian_filter=False,
-        difference_of_gaussians=False,
-        add_mod_trace_det_hessian=False,
-        add_zero_scale_features=False,
+        sigmas=(1, 2, 4, 8, 16),
+        sobel_filter=True,
+        hessian_filter=True,
+        difference_of_gaussians=True,
+        add_mod_trace_det_hessian=True,
+        add_zero_scale_features=True,
     )
-    img = (np.random.uniform(0, 1.0, (3624, 2448)) * 255).astype(np.uint8)
+    img = (np.random.uniform(0, 1.0, (1500, 1500)) * 255).astype(np.uint8)
     start = time()
     feats = multiscale_features(img, cfg, num_workers=N_ALLOWED_CPUS)
     end = time()
