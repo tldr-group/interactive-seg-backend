@@ -10,6 +10,7 @@ from interactive_seg_backend.configs.types import (
     HITLStrategy,
     Rules,
 )
+from typing import cast
 
 _FEAT_LIST: list[PossibleFeatures] = get_args(PossibleFeatures)  # type: ignore
 FEATURES: set[PossibleFeatures] = {*_FEAT_LIST}
@@ -119,12 +120,8 @@ class FeatureConfig:
             )
             self.sigmas = sigmas
 
-        assert self.membrane_thickness >= 1, (
-            "membrane_thickness must be greater than (or equal to) 0"
-        )
-        assert self.membrane_patch_size >= 3, (
-            "membrane_patch_size must be greater than (or equal to) 3"
-        )
+        assert self.membrane_thickness >= 1, "membrane_thickness must be greater than (or equal to) 0"
+        assert self.membrane_patch_size >= 3, "membrane_patch_size must be greater than (or equal to) 3"
         if self.use_gpu:
             self._check_if_filters_allowed_with_gpu()
 
@@ -163,7 +160,7 @@ class FeatureConfig:
                     continue
 
                 if name in singlescale_feats:
-                    out += _get_feat_name(name, sigma)
+                    out += _get_feat_name(cast(PossibleFeatures, name), sigma)
 
         for name in SCALEFREE_FEATS:
             is_enabled = self.__getattribute__(name)
@@ -186,9 +183,7 @@ class FeatureConfig:
 
     def __repr__(self) -> str:
         to_stringify = asdict(self)
-        out_str = f"FEATURE CONFIG: \n`{self.name}`: {self.desc}\n" + dumps(
-            to_stringify, ensure_ascii=True, indent=2
-        )
+        out_str = f"FEATURE CONFIG: \n`{self.name}`: {self.desc}\n" + dumps(to_stringify, ensure_ascii=True, indent=2)
         to_stringify.pop("name")
         to_stringify.pop("desc")
         return out_str
@@ -248,9 +243,7 @@ class TrainingConfig:
         desc = self.feature_config.desc
         to_stringify = asdict(self)
         to_stringify["feature_config"] = f"`{name}`: {desc}"
-        out_str = "TRAINING CONFIG: \n" + dumps(
-            to_stringify, ensure_ascii=True, indent=2
-        )
+        out_str = "TRAINING CONFIG: \n" + dumps(to_stringify, ensure_ascii=True, indent=2)
         return out_str
 
     def __post_init__(self) -> None:
@@ -261,9 +254,7 @@ class TrainingConfig:
             self.classifier_params["class_weight"] = "balanced"
 
 
-def load_training_config_json(
-    path: str, key_to_dataclass: dict[str, Any]
-) -> TrainingConfig:
+def load_training_config_json(path: str, key_to_dataclass: dict[str, Any]) -> TrainingConfig:
     with open(path, "r") as f:
         json_obj: dict[str, object] = load(f)
 
@@ -277,9 +268,7 @@ def load_training_config_json(
     return TrainingConfig(**res)
 
 
-def save_training_config_json(
-    cfg: TrainingConfig, path: str, key_to_dataclass: dict[str, Any]
-) -> None:
+def save_training_config_json(cfg: TrainingConfig, path: str, key_to_dataclass: dict[str, Any]) -> None:
     res: dict[str, Any] = {}
     for key, value in cfg.__dict__.items():
         if key in key_to_dataclass:  # assume is dataclass
@@ -302,9 +291,7 @@ if __name__ == "__main__":
     print(" ")
     t = TrainingConfig(c, "xgb")
     print(t)
-    save_training_config_json(
-        t, "foo.json", {"feature_config": None, "CRF_params": None}
-    )
+    save_training_config_json(t, "foo.json", {"feature_config": None, "CRF_params": None})
     v = load_training_config_json("foo.json", KEYS_TO_CLASSES)
 
     default_feats = FeatureConfig()
@@ -316,6 +303,4 @@ if __name__ == "__main__":
     )
 
     with_crf = TrainingConfig(default_feats, modal_filter=False, CRF=True)
-    save_training_config_json(
-        with_crf, "interactive_seg_backend/configs/examples/crf.json", KEYS_TO_CLASSES
-    )
+    save_training_config_json(with_crf, "interactive_seg_backend/configs/examples/crf.json", KEYS_TO_CLASSES)

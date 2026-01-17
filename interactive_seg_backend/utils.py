@@ -1,11 +1,11 @@
 import numpy as np
-from scipy.ndimage import rotate  # type: ignore[import]
-from skimage.filters import gaussian  # type: ignore[import]
+from scipy.ndimage import rotate
+from skimage.filters import gaussian
 
-from interactive_seg_backend.configs.types import Arr, FloatArr, UInt8Arr
+from interactive_seg_backend.configs import NPFloatArray, NPIntArray
 
 
-def class_avg_mious(prediction: UInt8Arr, ground_truth: UInt8Arr) -> list[float]:
+def class_avg_mious(prediction: NPIntArray, ground_truth: NPIntArray) -> list[float]:
     ious: list[float] = []
     vals = np.unique(ground_truth)
     for v in vals:
@@ -18,7 +18,7 @@ def class_avg_mious(prediction: UInt8Arr, ground_truth: UInt8Arr) -> list[float]
     return ious
 
 
-def class_avg_miou(prediction: UInt8Arr, ground_truth: UInt8Arr) -> float:
+def class_avg_miou(prediction: NPIntArray, ground_truth: NPIntArray) -> float:
     mious = class_avg_mious(prediction, ground_truth)
     mean = np.mean(mious)
     return float(mean)
@@ -38,7 +38,7 @@ def to_rgb_arr(arr: np.ndarray) -> np.ndarray:
 
 
 def rotate_ts(
-    input: FloatArr,
+    input: NPFloatArray,
     angle: float,
     axes: tuple[int, ...] = (1, 0),
     reshape: bool = True,
@@ -46,19 +46,19 @@ def rotate_ts(
     mode: str = "constant",
     cval: float = 0,
     prefilter: bool = True,
-) -> FloatArr:
-    return rotate(input, angle, axes, reshape, None, order, mode, cval, prefilter)  # type: ignore
+) -> NPFloatArray:
+    return rotate(input, angle, axes, reshape, None, order, mode, cval, prefilter)
 
 
 def gaussian_ts(
-    image: Arr,
+    image: NPFloatArray,
     sigma: float = 1,
     mode: str = "nearest",
     cval: int = 0,
     preserve_range: bool = False,
     truncate: float = 4,
     channel_axis: int | None = None,
-) -> FloatArr:
+) -> NPFloatArray:
     return gaussian(
         image,
         sigma,
@@ -67,7 +67,7 @@ def gaussian_ts(
         preserve_range=preserve_range,
         truncate=truncate,
         channel_axis=channel_axis,
-    )  # type: ignore
+    )
 
 
 if __name__ == "__main__":

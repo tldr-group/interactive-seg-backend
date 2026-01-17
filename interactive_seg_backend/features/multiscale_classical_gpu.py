@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable, Any, cast, TYPE_CHECKING
 from time import time
 
-from interactive_seg_backend.configs import FeatureConfig, Array
+from interactive_seg_backend.configs import FeatureConfig, Arr
 from interactive_seg_backend.utils import rotate_ts
 
 
@@ -49,22 +49,31 @@ def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype
     return tensor
 
 
-def concat_feats(arr1: Array, arr2: Array) -> Array:
+def concat_feats(arr1: Arr, arr2: Arr) -> Arr:
     # (optionally) cast to tensors and concatenate arrays
-    if isinstance(arr1, torch.Tensor) and isinstance(arr2, torch.Tensor):
-        res = torch.concatenate((arr1, arr2), dim=-1)
-    elif isinstance(arr1, torch.Tensor) and not isinstance(arr2, torch.Tensor):
-        tensor_2 = torch.tensor(arr2, dtype=arr1.dtype, device=arr1.device)
-        res = torch.concatenate((arr1, tensor_2), dim=-1)
-    elif isinstance(arr2, torch.Tensor) and not isinstance(arr1, torch.Tensor):
-        tensor_1 = torch.tensor(arr1, dtype=arr2.dtype, device=arr2.device)
-        res = torch.concatenate((tensor_1, arr2), dim=-1)
-    elif isinstance(arr1, np.ndarray) and isinstance(arr2, np.ndarray):
+
+    arr_1_is_numpy = isinstance(arr1, np.ndarray)
+    arr_2_is_numpy = isinstance(arr2, np.ndarray)
+    arr_1_is_tensor = not arr_1_is_numpy
+    arr_2_is_tensor = not arr_2_is_numpy
+
+    if arr_1_is_tensor and arr_2_is_tensor:
+        arr1_, arr2_ = cast("torch.Tensor", arr1), cast("torch.Tensor", arr2)
+        res = torch.concatenate((arr1_, arr2_), dim=-1)
+    elif arr_1_is_tensor and arr_2_is_numpy:
+        arr1_ = cast("torch.Tensor", arr1)
+        tensor_2 = torch.tensor(arr2, dtype=arr1_.dtype, device=arr1_.device)
+        res = torch.concatenate((arr1_, tensor_2), dim=-1)
+    elif arr_1_is_numpy and arr_2_is_tensor:
+        arr2_ = cast("torch.Tensor", arr2)
+        tensor_1 = torch.tensor(arr1, dtype=arr2_.dtype, device=arr2_.device)
+        res = torch.concatenate((tensor_1, arr2_), dim=-1)
+    elif arr_1_is_numpy and arr_2_is_numpy:
         res = np.concatenate((arr1, arr2), axis=-1)
     else:
         raise Exception(f"Invalid feat types: {type(arr1)} + {type(arr2)}")
 
-    return cast(Array, res)
+    return cast(Arr, res)
 
 
 # %% ===================================SINGLESCALE FEATURES===================================

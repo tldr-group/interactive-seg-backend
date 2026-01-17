@@ -2,7 +2,7 @@ import numpy as np
 from typing import TypeVar
 import numpy.typing as npt
 
-from typing import TypeAlias, Literal, TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TypeAlias, Literal, TYPE_CHECKING
 
 torch_imported = True
 try:
@@ -14,48 +14,22 @@ TORCH_AVAILABLE: bool = torch_imported
 if TYPE_CHECKING:
     from torch import Tensor
 
-
-DType = TypeVar("DType", covariant=False)
-
-
-@runtime_checkable
-class Array(Protocol[DType]):
-    shape: tuple[int, ...]
-    dtype: DType
-
-    def reshape(self, shape: tuple[int, ...]) -> "Array[DType]": ...
-
-
-class FloatDType: ...
-
-
-class IntDType: ...
-
-
-FloatArr_: TypeAlias = Array[FloatDType]
-IntArr_: TypeAlias = Array[IntDType]
-
 NPFloatArray: TypeAlias = npt.NDArray[np.floating]
 NPIntArray: TypeAlias = npt.NDArray[np.integer]
 NPUIntArray: TypeAlias = npt.NDArray[np.uint8] | npt.NDArray[np.uint16]
 
-# NPFloatArr: TypeAlias = Array[np.floating]
-
-FloatArr: TypeAlias = npt.NDArray[np.float16] | npt.NDArray[np.float32] | npt.NDArray[np.float64]
 UInt8Arr: TypeAlias = npt.NDArray[np.uint8]
-IntArr: TypeAlias = npt.NDArray[np.uint8] | npt.NDArray[np.uint16] | npt.NDArray[np.int32] | npt.NDArray[np.int64]
-Arr: TypeAlias = FloatArr | IntArr
+Arr: TypeAlias = NPFloatArray | NPIntArray
 
-AnyArr: TypeAlias = Arr | Tensor
+AnyArr: TypeAlias = "Arr | Tensor"
 Arrlike = TypeVar(
     "Arrlike",
-    FloatArr,
     Arr,
-    Tensor,
+    "Tensor",
     AnyArr,
 )
 
-UInt8Arrlike = TypeVar("UInt8Arrlike", npt.NDArray[np.uint8], Tensor)
+UInt8Arrlike = TypeVar("UInt8Arrlike", npt.NDArray[np.uint8], "Tensor")
 
 PossibleFeatures = Literal[
     "gaussian_blur",

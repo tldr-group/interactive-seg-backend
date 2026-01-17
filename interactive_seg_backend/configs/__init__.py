@@ -3,14 +3,10 @@ __all__ = [
     "CRFParams",
     "TrainingConfig",
     "load_training_config_json",
-    "FloatArr",
     "NPFloatArray",
-    "IntArr",
     "NPIntArray",
     "NPUIntArray",
-    "Array",
     "UInt8Arr",
-    "IntArr",
     "Arr",
     "AnyArr",
     "Arrlike",
@@ -18,12 +14,9 @@ __all__ = [
 ]
 from .config import FeatureConfig, TrainingConfig, CRFParams, load_training_config_json
 from .types import (
-    FloatArr,
     NPFloatArray,
-    IntArr,
     NPIntArray,
     NPUIntArray,
-    Array,
     UInt8Arr,
     Arr,
     AnyArr,

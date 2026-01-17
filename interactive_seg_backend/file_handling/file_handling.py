@@ -6,7 +6,7 @@ from os.path import exists
 
 from typing import cast, Literal
 
-from interactive_seg_backend.configs import Arr, AnyArr
+from interactive_seg_backend.configs.types import NPIntArray, Arr
 
 
 def read_file_get_arr(path: str) -> Arr:
@@ -25,12 +25,12 @@ def read_file_get_arr(path: str) -> Arr:
     return arr
 
 
-def load_featurestack(path: str) -> AnyArr:
+def load_featurestack(path: str) -> Arr:
     file_ext = path.split(".")[-1].lower()
-    stack: AnyArr
+    stack: Arr
     if file_ext in ("tif", "tiff"):
         _stack = imread(path)
-        stack = cast(AnyArr, _stack)
+        stack = cast(Arr, _stack)
     elif file_ext in ("npy", "npz"):
         stack = np.load(path)
     else:
@@ -38,9 +38,7 @@ def load_featurestack(path: str) -> AnyArr:
     return stack
 
 
-def save_featurestack(
-    arr: AnyArr, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]
-) -> None:
+def save_featurestack(arr: Arr, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]) -> None:
     file_ext = path.split(".")[-1].lower()
     if save_types == ".npy":
         np.save(path, arr)
@@ -68,14 +66,12 @@ N_VALS_CUTOFF = 20  # if they have more than 20 classes in arr, throw eror
 
 
 def rescale_unique_vals_to_contiguous_labels(
-    arr: Arr,
+    arr: NPIntArray,
 ) -> npt.NDArray[np.uint8]:
     # map from (2D) np array, go from unique values -> classes
     unique_vals = sorted(np.unique(arr))
     if len(unique_vals) > N_VALS_CUTOFF:
-        raise Exception(
-            "Too many unique values in array! Are you sure this is an integer label array? "
-        )
+        raise Exception("Too many unique values in array! Are you sure this is an integer label array? ")
 
     out = np.zeros_like(arr, dtype=np.uint8)
     for i, val in enumerate(unique_vals):
@@ -102,7 +98,7 @@ def load_labels(path: str) -> npt.NDArray[np.uint8]:
         return rescale_unique_vals_to_contiguous_labels(arr)
 
 
-def load_image(path: str) -> Arr:
+def load_image(path: str) -> np.ndarray:
     return read_file_get_arr(path)
 
 
