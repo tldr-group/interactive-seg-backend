@@ -6,7 +6,8 @@ from os.path import exists
 
 from typing import cast, Literal
 
-from interactive_seg_backend.configs.types import NPIntArray, Arr
+from interactive_seg_backend.configs.types import NPIntArray, Arr, AnyArr
+from interactive_seg_backend.features import transfer_from_gpu
 
 
 def read_file_get_arr(path: str) -> Arr:
@@ -38,7 +39,10 @@ def load_featurestack(path: str) -> Arr:
     return stack
 
 
-def save_featurestack(arr: Arr, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]) -> None:
+def save_featurestack(arr: AnyArr, path: str, save_types: Literal[".npy", ".npz", ".tif", ".pt"]) -> None:
+    # force arr onto cpu
+    arr = transfer_from_gpu(arr)
+
     file_ext = path.split(".")[-1].lower()
     if save_types == ".npy":
         np.save(path, arr)

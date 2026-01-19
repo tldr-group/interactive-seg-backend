@@ -1,7 +1,7 @@
 import numpy as np
-from typing import cast, TYPE_CHECKING
+from typing import cast, TYPE_CHECKING, TypeGuard
 
-from interactive_seg_backend.configs.types import Arrlike
+from interactive_seg_backend.configs.types import Arrlike, AnyArr
 
 try:
     import torch
@@ -29,10 +29,24 @@ def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype
     return tensor
 
 
-def transfer_from_gpu(tensor: "torch.Tensor", squeeze_batch_dim: bool = False) -> np.ndarray:
-    arr = tensor.detach().cpu().numpy()
-    if squeeze_batch_dim:
-        arr = arr.squeeze(0)
+def check_if_tensor(arr: AnyArr) -> TypeGuard["torch.Tensor"]:
+    return isinstance(arr, torch.Tensor)
+
+
+def check_if_numpy(arr: AnyArr) -> TypeGuard[np.ndarray]:
+    return isinstance(arr, np.ndarray)
+
+
+def transfer_from_gpu(tensor: AnyArr, squeeze_batch_dim: bool = False) -> np.ndarray:
+    if check_if_tensor(tensor):
+        if squeeze_batch_dim:
+            tensor = tensor.squeeze(0)
+        arr = tensor.detach().cpu().numpy()
+    elif check_if_numpy(tensor):
+        arr = tensor
+    else:
+        # should never hit this branch
+        raise Exception(f"Invalid type to transfer from GPU: {type(tensor)}")
     return arr
 
 

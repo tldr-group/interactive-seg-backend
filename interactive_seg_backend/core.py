@@ -16,8 +16,6 @@ from interactive_seg_backend.configs.types import (
     AnyArr,
     Arr,
     UInt8Arr,
-    Arrlike,
-    UInt8Arrlike,
     ClassifierNames,
 )
 from interactive_seg_backend.classifiers import Classifier, RandomForest, Logistic, Linear, XGBCPU, XGBGPU, MLP
@@ -46,33 +44,34 @@ def featurise_(
     return feats
 
 
-def get_training_data(feature_stacks: list[Arrlike] | list[str], labels: list[UInt8Arr]) -> tuple[Arrlike, UInt8Arr]:
+def get_training_data(feature_stacks: list[Arr] | list[str], labels: list[UInt8Arr]) -> tuple[Arr, UInt8Arr]:
     # support for handling stacks from filepaths s.t only one stack in memory at once
     assert len(feature_stacks) > 0
     assert len(feature_stacks) == len(labels)
 
-    def _get_stack(stack: Arrlike | str) -> Arrlike:
+    def _get_stack(stack: Arr | str) -> Arr:
         # _stack: Arrlike
         if type(stack) is str:
             _stack = load_featurestack(stack)
         else:
             _stack = stack
-        _stack = cast(Arrlike, _stack)
+        _stack = cast(Arr, _stack)
         return _stack
 
-    init_stack: Arrlike
+    init_stack: Arr
     init_stack, init_labels = _get_stack(feature_stacks[0]), labels[0]
 
     all_fit_data, all_target_data = get_labelled_training_data_from_stack(init_stack, init_labels)
     for stack, label in zip(feature_stacks[1:], labels[1:]):
-        _stack = _get_stack(stack)  # type: ignore
+        _stack = _get_stack(stack)
         fit, target = get_labelled_training_data_from_stack(_stack, label)
-        all_fit_data = np.concatenate((all_fit_data, fit), axis=0)  # type: ignore
+        all_fit_data = np.concatenate((all_fit_data, fit), axis=0)
         all_target_data = np.concatenate((all_target_data, target), axis=0)
+    all_fit_data = cast(Arr, all_fit_data)
     return all_fit_data, all_target_data
 
 
-def get_labelled_training_data_from_stack(feature_stack: Arrlike, labels: UInt8Arr) -> tuple[Arrlike, UInt8Arr]:
+def get_labelled_training_data_from_stack(feature_stack: Arr, labels: UInt8Arr) -> tuple[Arr, UInt8Arr]:
     h, w, n_feats = feature_stack.shape
     flat_labels = labels.reshape((h * w))
     flat_features = feature_stack.reshape((h * w, n_feats))
@@ -86,8 +85,8 @@ def get_labelled_training_data_from_stack(feature_stack: Arrlike, labels: UInt8A
 
 
 def shuffle_sample_training_data(
-    fit: Arrlike, target: UInt8Arrlike, shuffle: bool = True, sample_n: int = -1
-) -> tuple[Arrlike, UInt8Arrlike]:
+    fit: Arr, target: UInt8Arr, shuffle: bool = True, sample_n: int = -1
+) -> tuple[Arr, UInt8Arr]:
     n_samples = target.shape[0]
     all_inds = np.arange(0, n_samples, 1)
     if shuffle:
@@ -100,7 +99,7 @@ def shuffle_sample_training_data(
 
 
 def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: bool = False) -> Classifier:
-    if model_type in ["random_forest", "logistic_regression", "linear_regression"]:
+    if model_type in ["random_forest", "logistic_regression"]:
         extra_args["n_jobs"] = N_ALLOWED_CPUS
 
     if model_type == "random_forest":
@@ -119,7 +118,7 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: b
         raise Exception("Not implemented!")
 
 
-def train(model: Classifier, fit: Arrlike, target: UInt8Arr, sample_weight: Arr | None) -> Classifier:
+def train(model: Classifier, fit: Arr, target: UInt8Arr, sample_weight: Arr | None) -> Classifier:
     if sample_weight is None:
         model.fit(fit, target)
         return model
@@ -130,13 +129,15 @@ def train(model: Classifier, fit: Arrlike, target: UInt8Arr, sample_weight: Arr 
 
 def apply_(
     model: Classifier,
-    features: Arrlike,
+    features: Arr,
     h: int | None = None,
     w: int | None = None,
 ) -> tuple[UInt8Arr, Arr]:
     is_2D = len(features.shape) == 3
     if is_2D:
         h, w, n_feats = features.shape
+        assert h is not None
+        assert w is not None
         flat_features = features.reshape((h * w, n_feats))
     else:
         assert h is not None
@@ -150,9 +151,7 @@ def apply_(
     return seg, probs_2D
 
 
-def train_and_apply_(
-    features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig
-) -> tuple[UInt8Arr, Arr, Classifier]:
+def train_and_apply_(features: Arr, labels: UInt8Arr, train_cfg: TrainingConfig) -> tuple[UInt8Arr, Arr, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)
