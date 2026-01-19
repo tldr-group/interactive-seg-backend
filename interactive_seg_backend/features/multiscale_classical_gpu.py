@@ -4,7 +4,7 @@ from typing import Callable, Any, TYPE_CHECKING
 from time import time
 
 from interactive_seg_backend.configs import FeatureConfig
-from interactive_seg_backend.utils import rotate_ts
+from interactive_seg_backend.utils import rotate_ts, logger
 from .gpu_utils import (
     transfer_from_gpu,
     compute_zero_padding,
@@ -20,7 +20,7 @@ try:
 
     torch_imported = True
 except ImportError:
-    print("GPU dependencies not installed!")
+    logger.warning("Torch unavailable!")
     torch_imported = False
 TORCH_AVAILABLE = torch_imported
 
@@ -361,6 +361,7 @@ def multiscale_features_gpu(
     config: FeatureConfig,
     reshape_squeeze: bool = True,
 ) -> "torch.Tensor":
+    logger.info(f"GPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
     dtype = raw_img.dtype
     _, C, _, _ = raw_img.shape
     amax = torch.amax(raw_img)
@@ -432,6 +433,7 @@ def multiscale_features_gpu(
     if reshape_squeeze:
         features_out = torch.squeeze(features_out, 0)
         features_out = torch.permute(features_out, (1, 2, 0))
+    logger.info(f"Features out: {features_out.shape}")
     return features_out
 
 

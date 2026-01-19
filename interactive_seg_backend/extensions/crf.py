@@ -1,7 +1,7 @@
 import numpy as np
 
 from interactive_seg_backend.configs import CRFParams
-from interactive_seg_backend.utils import to_rgb_arr
+from interactive_seg_backend.utils import to_rgb_arr, logger
 
 from typing import TYPE_CHECKING, Any
 
@@ -12,8 +12,7 @@ try:
 
     KERNEL = dcrf.FULL_KERNEL
 except ImportError:
-    # TODO: make this logging
-    print("Warning: CRF unvailable")
+    logger.warning("CRF unavailable!")
     crf_imported = False
 CRF_AVAILABLE = crf_imported
 
@@ -73,8 +72,9 @@ def do_crf_from_labels(labels_arr: np.ndarray, img_arr: np.ndarray, n_classes: i
 
 def do_crf_from_probabilites(probs: np.ndarray, img_arr: np.ndarray, n_classes: int, crf: CRFParams) -> np.ndarray:
     if CRF_AVAILABLE is False:
-        # TODO: add warning log here
+        logger.warning("CRF unavailable, skipping CRF refinement")
         return probs
+    logger.info(f"CRF: probs {probs.shape}, img {img_arr.shape}, params: {crf}")
 
     if len(img_arr.shape) == 2:
         img_arr = to_rgb_arr(img_arr)

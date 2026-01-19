@@ -199,6 +199,11 @@ class CRFParams:
     compat_b: float = 10  # 10
     n_infer: int = 10
 
+    def __repr__(self) -> str:
+        to_stringify = asdict(self)
+        out_str = "CRF PARAMS: \n" + dumps(to_stringify, ensure_ascii=True, indent=2)
+        return out_str
+
 
 default_crf_params = CRFParams()
 KEYS_TO_CLASSES: dict[str, Any] = {

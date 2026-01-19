@@ -10,7 +10,7 @@ from interactive_seg_backend.configs import Arr, UInt8Arr, Arrlike
 
 class Classifier(object):
     def __init__(self, extra_args: dict[str, Any]) -> None:
-        pass
+        self.model: object | None = None
 
     def fit(
         self,
@@ -37,6 +37,10 @@ class Classifier(object):
                 dump(self, f)
         else:
             skdump(self, out_path)
+
+    def __repr__(self) -> str:
+        model_name = "None" if self.model is None else self.model.__class__.__name__
+        return f"{model_name}"
 
 
 def load_classifier(path: str) -> Classifier:

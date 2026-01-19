@@ -84,8 +84,8 @@ pip install . --no-cache-dir --no-index
 
 ## TODO:
 
-- logging
 - pass down things you care about i.e sample weights into train / train and apply
 - improvements: fixed vf, rules (connectivity), SAM post-proc ?
 - docstrings
+- example notebooks (basics + interactive widget?)
 - pydantic?
