@@ -1,4 +1,3 @@
-from PIL.ImageChops import add
 import numpy as np
 from scipy.ndimage import rotate
 from skimage.filters import gaussian
