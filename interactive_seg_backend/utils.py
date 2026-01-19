@@ -104,7 +104,9 @@ class ColorFormatter(logging.Formatter):
         timestamp = strftime(fmt, localtime(record.created))
 
         color = self.COLORS.get(record.levelno, "")
-        record.filename = add_color(record.filename, color)
+
+        padded = record.filename.ljust(27)
+        record.filename = add_color(padded, color)
         record.levelname = add_color(self.CHARS[record.levelno], color)
 
         record.asctime_coloured = add_color(timestamp, self.TIME_COLOR)
@@ -119,7 +121,7 @@ logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(stdout)
 
 formatter = ColorFormatter(
-    fmt="%(asctime_coloured)s | %(levelname)s | %(filename)s:%(lineno_coloured)s -  %(message)s",
+    fmt="%(asctime_coloured)s | %(levelname)s | %(filename)-30s:%(lineno_coloured)3s | %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
