@@ -4,6 +4,7 @@ __all__ = [
     "TORCH_AVAILABLE",
     "multiscale_features_gpu",
     "prepare_for_gpu",
+    "transfer_from_gpu",
     "concat_feats",
     "N_ALLOWED_CPUS",
 ]
@@ -11,6 +12,5 @@ from .multiscale_classical_cpu import multiscale_features, singlescale_singlecha
 from .multiscale_classical_gpu import (
     TORCH_AVAILABLE,
     multiscale_features_gpu,
-    prepare_for_gpu,
-    concat_feats,
 )
+from .gpu_utils import prepare_for_gpu, concat_feats, transfer_from_gpu

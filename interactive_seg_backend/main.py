@@ -6,25 +6,12 @@ from interactive_seg_backend.extensions.autocontext import autocontext_features
 from interactive_seg_backend.file_handling import save_featurestack
 from interactive_seg_backend.features import (
     prepare_for_gpu,
+    transfer_from_gpu,
     concat_feats,
 )
-from interactive_seg_backend.configs.types import (
-    Arr,
-    AnyArr,
-    UInt8Arr,
-    Arrlike,
-    # UInt8Arrlike,
-    # ClassifierNames,
-)
+from interactive_seg_backend.configs.types import Arr, AnyArr, UInt8Arr, Arrlike
 
-from interactive_seg_backend.classifiers import (
-    Classifier,
-    # RandomForest,
-    # Logistic,
-    # Linear,
-    # XGBCPU,
-    # XGBGPU,
-)
+from interactive_seg_backend.classifiers import Classifier
 from interactive_seg_backend.core import (
     get_labelled_training_data_from_stack,
     shuffle_sample_training_data,
@@ -47,7 +34,6 @@ FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
 def featurise(
     image: Arr,
     training_cfg: TrainingConfig,
-    use_gpu: bool = False,
     save_path: str = "",
     custom_fns: list[tuple[FeatureFunction, bool]] = [],
 ) -> AnyArr:
@@ -75,10 +61,8 @@ def featurise(
 
 def apply(
     model: Classifier,
-    features: Arrlike,
+    features: Arr,
     training_cfg: TrainingConfig,
-    h: int | None = None,
-    w: int | None = None,
     image: np.ndarray | None = None,
     labels: UInt8Arr | None = None,
 ) -> tuple[UInt8Arr, Arr]:
@@ -86,8 +70,10 @@ def apply(
     _, _, n_classes = probs_2D.shape
 
     if training_cfg.autocontext and CRF_AVAILABLE:
-        assert labels is not None, "Need labels to do CRF"
+        assert image is not None, "Need Image to do autocontext"
+        assert labels is not None, "Need labels to do autocontext"
         new_feats = autocontext_features(image, labels, training_cfg, features, probs_2D, "autocontext_original")
+        new_feats = transfer_from_gpu(new_feats)
         seg, probs_2D, _ = train_and_apply_(new_feats, labels, training_cfg)
 
     if training_cfg.CRF and CRF_AVAILABLE:
@@ -101,7 +87,7 @@ def apply(
     return seg, probs_2D
 
 
-def train_and_apply(features: Arrlike, labels: UInt8Arr, train_cfg: TrainingConfig) -> tuple[UInt8Arr, Arr, Classifier]:
+def train_and_apply(features: Arr, labels: UInt8Arr, train_cfg: TrainingConfig) -> tuple[UInt8Arr, Arr, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)

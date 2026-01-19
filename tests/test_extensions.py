@@ -6,13 +6,13 @@ from interactive_seg_backend.file_handling import (
     load_image,
     load_labels,
 )
-from interactive_seg_backend.main import train_and_apply
 from interactive_seg_backend.extensions import (
     autocontext_features,
     CRF_AVAILABLE,
     CRFParams,
     do_crf_from_probabilites,
 )
+from interactive_seg_backend import train_and_apply, transfer_from_gpu
 
 
 @pytest.fixture
@@ -37,6 +37,7 @@ def test_autocontext_features(
         labels_,
         train_cfg,
     )
+    af_feats = transfer_from_gpu(af_feats)
     pred, _, _ = train_and_apply(af_feats, labels_, train_cfg)
     save_segmentation(pred, "tests/out/1_seg_autocontext.tif")
 

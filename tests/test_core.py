@@ -2,7 +2,7 @@ import pytest
 
 from interactive_seg_backend.configs import (
     Arr,
-    Arrlike,
+    AnyArr,
     UInt8Arr,
     FeatureConfig,
     TrainingConfig,
@@ -16,7 +16,7 @@ from interactive_seg_backend.core import (
     get_model,
     train,
 )
-from interactive_seg_backend.main import apply
+from interactive_seg_backend import apply, transfer_from_gpu
 from interactive_seg_backend.utils import class_avg_miou
 
 
@@ -47,7 +47,7 @@ MIOU_CUTOFF = 0.55
 
 
 def e2e_get_miou(
-    features: Arrlike,
+    features: AnyArr,
     label: UInt8Arr,
     cfg: TrainingConfig,
     ground_truth: UInt8Arr,
@@ -56,10 +56,9 @@ def e2e_get_miou(
     run_checks: bool = True,
     miou_cutoff: float = MIOU_CUTOFF,
 ) -> tuple[float, UInt8Arr]:
+    features = transfer_from_gpu(features)
     fit, target = get_labelled_training_data_from_stack(features, label)
-    fit, target = shuffle_sample_training_data(
-        fit, target, cfg.shuffle_data, cfg.n_samples
-    )
+    fit, target = shuffle_sample_training_data(fit, target, cfg.shuffle_data, cfg.n_samples)
     model = get_model(cfg.classifier, cfg.classifier_params, cfg.use_gpu)
     model = train(model, fit, target, None)
     pred, _ = apply(model, features, cfg)
