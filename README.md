@@ -84,14 +84,8 @@ pip install . --no-cache-dir --no-index
 
 ## TODO:
 
-- make typing story more compelling:
-  - actually make the main functions able to take in tensors or arrays
-  - or give up and make separate functions where necesarry
-  - make core vs main distinction make more sense
-    - export everything important from main / init
-    - pass down things you care about i.e sample weights into train / train and apply
 - logging
-- try to adapt kornia filter code w/out importing the whole thing ()
+- pass down things you care about i.e sample weights into train / train and apply
 - improvements: fixed vf, rules (connectivity), SAM post-proc ?
 - docstrings
 - pydantic?

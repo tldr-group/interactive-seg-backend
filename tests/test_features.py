@@ -191,7 +191,7 @@ def compare_two_stacks(
 
         diff = norm_get_mse(slice_1, slice_2)
 
-        passed = diff < cutoff
+        passed = bool(diff < cutoff)
         checks.append((feat_name, passed, diff))
     passed_all = all([t[1] for t in checks])
     if not passed_all:
@@ -210,6 +210,7 @@ class TestGPUCPUEquivalence:
             median=True,
             bilateral=True,
             add_weka_sigma_multiplier=False,
+            laplacian=True,
         )
         feats_cpu: npt.NDArray[np.float32] = ft.multiscale_features(DATA, cfg)
 
