@@ -84,19 +84,14 @@ pip install . --no-cache-dir --no-index
 
 ## TODO:
 
-- logging
-- docstrings
 - make typing story more compelling:
-
-  - helper typesafe functions?
-  - pydantic?
   - actually make the main functions able to take in tensors or arrays
   - or give up and make separate functions where necesarry
   - make core vs main distinction make more sense
-    - make CPU version still work with conditional imports and string quote types
     - export everything important from main / init
     - pass down things you care about i.e sample weights into train / train and apply
-
-- improvements: fixed vf, rules (connectivity) ?
+- logging
 - try to adapt kornia filter code w/out importing the whole thing ()
-- applying: patched, 3D (+ average), all with memory consideration (caching)
+- improvements: fixed vf, rules (connectivity), SAM post-proc ?
+- docstrings
+- pydantic?

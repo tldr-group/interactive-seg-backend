@@ -6,9 +6,11 @@ from math import isclose, pi
 from skimage.metrics import mean_squared_error
 from tifffile import imread
 
-from interactive_seg_backend.configs import FeatureConfig
-import interactive_seg_backend.features.multiscale_classical_cpu as ft
-import interactive_seg_backend.features.multiscale_classical_gpu as ft_gpu
+from interactive_seg_backend import FeatureConfig
+from interactive_seg_backend import multiscale_classical_cpu as ft
+from interactive_seg_backend import multiscale_classical_gpu as ft_gpu
+
+from typing import cast
 
 # from visualise import plot
 # TODO: rewrite all these to just be normal functions + pytest fixtures
@@ -28,9 +30,7 @@ def _test_centre_val(filtered_arr: npt.NDArray[np.uint8], val: float | int):
     assert isclose(centre_val, val, abs_tol=1e-6)
 
 
-def _test_sum(
-    filtered_arr: npt.NDArray[np.float32] | npt.NDArray[np.uint8], val: float | int
-):
+def _test_sum(filtered_arr: npt.NDArray[np.float32] | npt.NDArray[np.uint8], val: float | int):
     assert isclose(np.sum(filtered_arr), val, abs_tol=1e-6)
 
 
@@ -71,6 +71,7 @@ class TestFeatureCorrectness:
         should be unity as well.
         """
         filtered = ft.singlescale_mean(CIRCLE_BYTE, FOOTPRINT)
+        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
 
     def test_max(self) -> None:
@@ -80,6 +81,7 @@ class TestFeatureCorrectness:
         corners (as they are more than $SIGMA pixels away from disk).
         """
         filtered = ft.singlescale_maximum(CIRCLE_BYTE, FOOTPRINT)
+        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
         top_left_val = filtered[0, 0]
         assert isclose(top_left_val, 0, abs_tol=1e-6)
@@ -91,6 +93,7 @@ class TestFeatureCorrectness:
         centre - so centre value AND sum should equal 255.
         """
         filtered = ft.singlescale_minimum(CIRCLE_BYTE, FOOTPRINT)
+        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
         _test_sum(filtered, 255)
 
@@ -101,6 +104,7 @@ class TestFeatureCorrectness:
         Again centre should be 255 and egdes 0.
         """
         filtered = ft.singlescale_median(CIRCLE_BYTE, FOOTPRINT)
+        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
         top_left_val = filtered[0, 0]
         assert isclose(top_left_val, 0, abs_tol=1e-6)
@@ -153,9 +157,7 @@ def norm(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     return np.abs(normed)
 
 
-def norm_get_mse(
-    filter_1: npt.NDArray[np.float32], filter_2: npt.NDArray[np.float32]
-) -> float:
+def norm_get_mse(filter_1: npt.NDArray[np.float32], filter_2: npt.NDArray[np.float32]) -> float:
     """Normalise both filters (arrays) and get the mse.
 
     :param filter_1: first arr
@@ -193,7 +195,7 @@ def compare_two_stacks(
         checks.append((feat_name, passed, diff))
     passed_all = all([t[1] for t in checks])
     if not passed_all:
-        failed = [t for t in checks if t[1] == False]
+        failed = [t for t in checks if t[1] is False]
         print(failed)
         assert False
 
@@ -211,18 +213,12 @@ class TestGPUCPUEquivalence:
         )
         feats_cpu: npt.NDArray[np.float32] = ft.multiscale_features(DATA, cfg)
 
-        img_tensor = (
-            torch.tensor(DATA, device="cuda:0", dtype=torch.float32)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        img_tensor = torch.tensor(DATA, device="cuda:0", dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         assert len(img_tensor.shape) == 4, "need (B,C,H,W) tensor for GPU feats"
         feats_gpu = ft_gpu.multiscale_features_gpu(img_tensor, cfg)
         feats_gpu_np: npt.NDArray[np.float32] = feats_gpu.cpu().numpy()
 
-        assert feats_cpu.shape == feats_gpu.shape, (
-            f"{feats_cpu.shape} != {feats_gpu.shape}!"
-        )
+        assert feats_cpu.shape == feats_gpu.shape, f"{feats_cpu.shape} != {feats_gpu.shape}!"
 
         feat_names = cfg.get_filter_strings()
         compare_two_stacks(feats_cpu, feats_gpu_np, AVG_MSE_CUTOFF, feat_names)
@@ -248,12 +244,8 @@ class TestCPUWekaEquivalence:
         n_dog = 0
         for i, _ in enumerate(new_sigmas):
             if i > 0:
-                weka_init_idx = (
-                    (i - 1) * filters_per_sigma_full + filters_per_sigma_zero + n_dog
-                )
-                ours_init_idx = (
-                    i - 1
-                ) * filters_per_sigma_full_ours + filters_per_sigma_zero_ours
+                weka_init_idx = (i - 1) * filters_per_sigma_full + filters_per_sigma_zero + n_dog
+                ours_init_idx = (i - 1) * filters_per_sigma_full_ours + filters_per_sigma_zero_ours
             else:
                 weka_init_idx = 0
                 ours_init_idx = 0
@@ -287,9 +279,7 @@ class TestCPUWekaEquivalence:
                     n_dog += 1
             if i >= 1:
                 for n_avg in range(4):  # mean, min, max, median - same order as ours
-                    avg_idx = (
-                        weka_init_idx + 10 + (j + 1) + n_avg
-                    )  # need to account for their DoG ordering
+                    avg_idx = weka_init_idx + 10 + (j + 1) + n_avg  # need to account for their DoG ordering
                     avg_idx_ours = ours_init_idx + len(singlescale_idxs) + n_avg
                     out[:, :, avg_idx_ours] = full_stack[:, :, avg_idx]
         N_MEMBRANE_PROJ = 6
@@ -310,9 +300,7 @@ class TestCPUWekaEquivalence:
             add_zero_scale_features=True,
         )
         n_feats_out = len(cfg.get_filter_strings())
-        weka_stack_remapped = self.get_matching_weka_filters(
-            cfg.sigmas, weka_stack, n_feats_out
-        )
+        weka_stack_remapped = self.get_matching_weka_filters(cfg.sigmas, weka_stack, n_feats_out)
         ours_stack = ft.multiscale_features(DATA, cfg)
         feat_names = cfg.get_filter_strings()
 
