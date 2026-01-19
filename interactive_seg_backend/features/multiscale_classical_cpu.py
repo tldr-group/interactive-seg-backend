@@ -413,13 +413,8 @@ def multiscale_singlechannel(
         bilateral_filtered = bilateral(byte_img)
         features += bilateral_filtered
 
-    features_np: np.ndarray = np.stack(features, axis=-1)
-    if config.cast_to == "f16":
-        features_np = features_np.astype(np.float16)
-    elif config.cast_to == "f64":
-        features_np = features_np.astype(np.float64)
-    else:
-        features_np = features_np.astype(np.float32)
+    dtype_mapping = {"f16": np.float16, "f32": np.float32, "f64": np.float64}
+    features_np: np.ndarray = np.stack(features, axis=-1, dtype=dtype_mapping[config.cast_to])
     return features_np
 
 
@@ -463,19 +458,19 @@ def multiscale_features(
 if __name__ == "__main__":
     cfg = FeatureConfig(
         name="no_cast",
-        membrane_projections=True,
+        membrane_projections=False,
         bilateral=False,
-        cast_to="f32",
+        cast_to="f16",
         sigmas=(1, 2, 4, 8, 16),
-        sobel_filter=True,
-        hessian_filter=True,
-        difference_of_gaussians=True,
-        add_mod_trace_det_hessian=True,
-        add_zero_scale_features=True,
+        sobel_filter=False,
+        hessian_filter=False,
+        difference_of_gaussians=False,
+        add_mod_trace_det_hessian=False,
+        add_zero_scale_features=False,
     )
-    img = (np.random.uniform(0, 1.0, (1500, 1500)) * 255).astype(np.uint8)
+    img = (np.random.uniform(0, 1.0, (1920, 1080)) * 255).astype(np.uint8)
     start = time()
     feats = multiscale_features(img, cfg, num_workers=N_ALLOWED_CPUS)
     end = time()
     print(cfg)
-    print(f"{feats.shape} in {end - start:.4f}s")
+    print(f"{feats.shape} in {end - start:.4f}s, {feats.dtype}")

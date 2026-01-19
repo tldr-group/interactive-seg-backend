@@ -1,6 +1,6 @@
 from typing import cast
-from skimage.exposure import equalize_adapthist # type: ignore
-from skimage.restoration import denoise_wavelet # type: ignore
+from skimage.exposure import equalize_adapthist
+from skimage.restoration import denoise_wavelet
 
 from interactive_seg_backend.configs import Arr
 from interactive_seg_backend.configs.types import (
@@ -9,10 +9,8 @@ from interactive_seg_backend.configs.types import (
 from interactive_seg_backend.utils import gaussian_ts
 
 
-def preprocess(
-    img_arr: Arr, preprocessing_operations: tuple[Preprocessing, ...]
-) -> Arr:
-    out: Arr
+def preprocess(img_arr: Arr, preprocessing_operations: tuple[Preprocessing, ...]) -> Arr:
+    out: Arr = img_arr
     if "blur" in preprocessing_operations:
         out = gaussian_ts(img_arr, 1)
     if "denoise" in preprocessing_operations:
