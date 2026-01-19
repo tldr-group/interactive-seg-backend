@@ -34,7 +34,6 @@ dependencies = [
 gpu = [
   "torch>=2.5",
   "torchvision>=0.20.1",
-  "kornia>=0.8.0",
   "cupy-cuda12x>=13.0.0"
 ]
 lint = [

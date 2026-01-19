@@ -44,6 +44,7 @@ PossibleFeatures = Literal[
     "difference_of_gaussians",
     "membrane_projections",
     "bilateral",
+    "laplacian",
 ]
 
 ClassifierNames = Literal["linear_regression", "logistic_regression", "random_forest", "xgb", "mlp"]

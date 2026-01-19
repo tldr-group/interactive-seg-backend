@@ -208,7 +208,7 @@ def singlescale_laplacian(img: NPFloatArray) -> NPFloatArray:
     :return: laplacian filtered img arr
     :rtype: np.ndarray
     """
-    out = filters.laplace(img)
+    out = filters.laplace(img, 3)
     return cast(NPFloatArray, out)
 
 

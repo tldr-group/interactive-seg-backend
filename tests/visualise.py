@@ -107,9 +107,13 @@ if __name__ == "__main__":
 
     cfg = FeatureConfig(
         sigmas=(1.0, 4.0, 16.0),
-        mean=True,
-        maximum=True,
-        minimum=True,
+        sobel_filter=False,
+        difference_of_gaussians=False,
+        membrane_projections=False,
+        hessian_filter=False,
+        mean=False,
+        maximum=False,
+        minimum=False,
         laplacian=True,
         add_weka_sigma_multiplier=False,
     )
