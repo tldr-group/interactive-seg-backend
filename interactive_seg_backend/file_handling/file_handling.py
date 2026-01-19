@@ -8,6 +8,7 @@ from typing import cast, Literal
 
 from interactive_seg_backend.configs.types import NPIntArray, Arr, AnyArr
 from interactive_seg_backend.features import transfer_from_gpu
+from interactive_seg_backend.utils import logger
 
 
 def read_file_get_arr(path: str) -> Arr:
@@ -52,6 +53,8 @@ def save_featurestack(arr: AnyArr, path: str, save_types: Literal[".npy", ".npz"
         imwrite(path, arr)
     else:
         raise Exception(f"filetype '.{file_ext}' not supported!")
+
+    logger.info(f"Saved featurestack to {path}")
 
 
 def rescale_labels_to_greyscale(
@@ -124,6 +127,8 @@ def save_segmentation(
         img.save(out_path)
     else:
         imwrite(out_path, to_save, compression=COMPRESSION.DEFLATE)
+
+    logger.info(f"Saved segmentation to {out_path}")
 
 
 def save_labels(

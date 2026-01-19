@@ -27,6 +27,8 @@ from interactive_seg_backend.extensions.crf import (
 )
 from interactive_seg_backend.processing.postprocess import modal_filter
 
+from interactive_seg_backend.utils import logger
+
 
 FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
 

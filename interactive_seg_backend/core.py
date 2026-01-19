@@ -1,8 +1,8 @@
 import numpy as np
-from interactive_seg_backend.configs.config import (
+from interactive_seg_backend.configs.types import Preprocessing
+from interactive_seg_backend.configs import (
     FeatureConfig,
     TrainingConfig,
-    Preprocessing,
 )
 
 from interactive_seg_backend.file_handling import load_featurestack
@@ -19,9 +19,8 @@ from interactive_seg_backend.configs.types import (
     ClassifierNames,
 )
 from interactive_seg_backend.classifiers import Classifier, RandomForest, Logistic, Linear, XGBCPU, XGBGPU, MLP
-
-
 from interactive_seg_backend.processing import preprocess
+from interactive_seg_backend.utils import logger
 
 from typing import Any, cast
 
@@ -119,6 +118,8 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: b
 
 
 def train(model: Classifier, fit: Arr, target: UInt8Arr, sample_weight: Arr | None) -> Classifier:
+    weights_str = "" if sample_weight is None else f"weights: {sample_weight.shape}"
+    logger.info(f"Training {model}: {fit.shape} -> ({target.shape}) {weights_str}")
     if sample_weight is None:
         model.fit(fit, target)
         return model
@@ -133,6 +134,7 @@ def apply_(
     h: int | None = None,
     w: int | None = None,
 ) -> tuple[UInt8Arr, Arr]:
+    logger.info(f"Applying {model} to {features.shape} features")
     is_2D = len(features.shape) == 3
     if is_2D:
         h, w, n_feats = features.shape

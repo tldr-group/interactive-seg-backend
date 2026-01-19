@@ -32,7 +32,7 @@ from multiprocessing import cpu_count
 
 from interactive_seg_backend.configs.config import FeatureConfig
 from interactive_seg_backend.configs.types import NPFloatArray, NPUIntArray
-from interactive_seg_backend.utils import gaussian_ts, rotate_ts
+from interactive_seg_backend.utils import gaussian_ts, rotate_ts, logger
 
 from time import time
 from collections.abc import Sequence
@@ -423,6 +423,7 @@ def multiscale_features(
     config: FeatureConfig,
     num_workers: int | None = None,
 ) -> NPFloatArray:
+    logger.info(f"CPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
     out: list[NPFloatArray] = []
     n_dims = len(raw_img.shape)
     # (H, W)
@@ -452,6 +453,7 @@ def multiscale_features(
         out.append(slice_feats)
     stacked = np.concatenate(out, axis=-1)
     stacked = cast(NPFloatArray, stacked)
+    logger.info(f"Features out: {stacked.shape}")
     return stacked
 
 
