@@ -5,19 +5,18 @@ from time import time
 
 from interactive_seg_backend.configs import FeatureConfig
 from interactive_seg_backend.utils import rotate_ts
-from interactive_seg_backend.features.gpu_utils import transfer_from_gpu
+from .gpu_utils import (
+    transfer_from_gpu,
+    compute_zero_padding,
+    unpack_2d_ks,
+    get_gaussian_kernel2d,
+    get_binary_kernel2d,
+)
 
 
 try:
     import torch
     from torch.nn.functional import conv2d, max_pool2d, avg_pool2d, pad
-    from kornia.filters import (
-        gaussian_blur2d,
-        median_blur,
-        laplacian,
-        bilateral_blur,
-        get_gaussian_kernel2d,
-    )
 
     torch_imported = True
 except ImportError:
@@ -28,20 +27,80 @@ TORCH_AVAILABLE = torch_imported
 if TYPE_CHECKING:
     import torch
     from torch.nn.functional import conv2d, max_pool2d, avg_pool2d, pad
-    from kornia.filters import (
-        gaussian_blur2d,
-        median_blur,
-        laplacian,
-        bilateral_blur,
-        get_gaussian_kernel2d,
-    )
+
+
+# %% ===================================KORNIA FILTERS===================================
+"""
+The following block is taken from kornia.filters.kernels & kornia.filters
+
+kornia: https://github.com/kornia/kornia
+Apache 2.0
+"""
+
+
+def median_blur(input: torch.Tensor, kernel_size: tuple[int, int]) -> torch.Tensor:
+    r"""
+    Blur an image using the median filter.
+    """
+    if not isinstance(input, torch.Tensor):
+        raise TypeError(f"Input type is not a torch.Tensor. Got {type(input)}")
+
+    if not len(input.shape) == 4:
+        raise ValueError(f"Invalid input shape, we expect BxCxHxW. Got: {input.shape}")
+
+    padding: tuple[int, int] = compute_zero_padding(kernel_size)
+
+    # prepare kernel
+    kernel: torch.Tensor = get_binary_kernel2d(kernel_size).to(input)
+    b, c, h, w = input.shape
+
+    # map the local window to single vector
+    features: torch.Tensor = conv2d(input.reshape(b * c, 1, h, w), kernel, padding=padding, stride=1)
+    features = features.view(b, c, -1, h, w)  # BxCx(K_h * K_w)xHxW
+
+    # compute the median along the feature axis
+    median: torch.Tensor = torch.median(features, dim=2)[0]
+
+    return median
+
+
+def bilateral_blur(
+    input: torch.Tensor,
+    kernel_size: tuple[int, int] | int,
+    sigma_color: float | torch.Tensor,
+    sigmas_space: tuple[float, float],
+    border_type: str = "reflect",
+    color_distance_type: str = "l1",
+) -> torch.Tensor:
+    "Single implementation for both Bilateral Filter and Joint Bilateral Filter"
+
+    ky, kx = unpack_2d_ks(kernel_size)
+    pad_y, pad_x = compute_zero_padding((ky, kx))
+
+    padded_input = pad(input, (pad_x, pad_x, pad_y, pad_y), mode=border_type)
+    unfolded_input = padded_input.unfold(2, ky, 1).unfold(3, kx, 1).flatten(-2)  # (B, C, H, W, Ky x Kx)
+
+    guidance = input
+    unfolded_guidance = unfolded_input
+
+    diff = unfolded_guidance - guidance.unsqueeze(-1)
+    if color_distance_type == "l1":
+        color_distance_sq = diff.abs().sum(1, keepdim=True).square()
+    elif color_distance_type == "l2":
+        color_distance_sq = diff.square().sum(1, keepdim=True)
+    else:
+        raise ValueError("color_distance_type only acceps l1 or l2")
+    color_kernel = (-0.5 / sigma_color**2 * color_distance_sq).exp()  # (B, 1, H, W, Ky x Kx)
+
+    space_kernel = get_gaussian_kernel2d((ky, kx), sigmas_space, device=input.device, dtype=input.dtype)
+    space_kernel = space_kernel.view(-1, 1, 1, 1, kx * ky)
+
+    kernel = space_kernel * color_kernel
+    out = (unfolded_input * kernel).sum(-1) / kernel.sum(-1)
+    return out
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
-def singlescale_gaussian(img: "torch.Tensor", sigma: int, mult: float = 1.0) -> "torch.Tensor":
-    s = int(mult * sigma)
-    out = gaussian_blur2d(img, kernel_size=(2 * s + 1, 2 * s + 1), sigma=(s, s))
-    return out
 
 
 def get_multiscale_gaussian_kernel(
@@ -80,6 +139,20 @@ def get_sobel_kernel(device: "torch.device", dtype: "torch.dtype", n_channels: i
 
     stacked = torch.stack((g_x, g_y))
     filters = stacked.unsqueeze(1)
+    filters = torch.tile(filters, (n_channels, 1, 1, 1))
+    return filters
+
+
+def get_laplacian_kernel(
+    device: "torch.device", dtype: "torch.dtype", sigmas: tuple[int, int], n_channels: int
+) -> "torch.Tensor":
+    kernel = torch.tensor(
+        [[0, -1, 0], [-1, 4, -1], [0, -1, 0]],
+        dtype=dtype,
+        device=device,
+        requires_grad=False,
+    )
+    filters = kernel.unsqueeze(0)
     filters = torch.tile(filters, (n_channels, 1, 1, 1))
     return filters
 
@@ -177,12 +250,13 @@ def singlescale_minimum(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
 
 def singlescale_median(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
     k = 2 * sigma + 1
-    return median_blur(img, k)
+    return median_blur(img, (k, k))
 
 
-def singlescale_laplacian(img: "torch.Tensor", sigma: int) -> "torch.Tensor":
-    k = 2 * sigma + 1
-    return laplacian(img, (k, k))
+def singlescale_laplacian(img: "torch.Tensor") -> "torch.Tensor":
+    kernel = get_laplacian_kernel(device=img.device, dtype=img.dtype, sigmas=(3, 3), n_channels=img.shape[1])
+    out = convolve(img, kernel, False)
+    return out
 
 
 # %% ===================================SCALE-FREE FEATURES===================================
@@ -195,7 +269,7 @@ def bilateral(img: "torch.Tensor") -> "torch.Tensor":
                 img,
                 k,
                 sigma_color=value_range / 255.0,
-                sigma_space=(spatial_radius, spatial_radius),
+                sigmas_space=(spatial_radius, spatial_radius),
             )
             bilaterals.append(filtered)
     return torch.cat(bilaterals, dim=1)
@@ -337,7 +411,7 @@ def multiscale_features_gpu(
         if config.median:
             features.append(singlescale_median(raw_img, s))
         if config.laplacian:
-            features.append(singlescale_laplacian(blurred, s))
+            features.append(singlescale_laplacian(blurred))
 
     if config.difference_of_gaussians:
         features.append(difference_of_gaussians(gaussian_blurs, N_sigmas))
