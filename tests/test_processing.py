@@ -20,7 +20,7 @@ feat_cfg = FeatureConfig(
     add_weka_sigma_multiplier=True,
 )
 extra_args = {"n_estimators": 200, "max_features": 2, "max_depth": None}
-train_cfg = TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
+train_cfg = TrainingConfig(feature_config=feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
 def test_equalize(save: bool = True) -> None:
@@ -41,9 +41,7 @@ def test_equalize(save: bool = True) -> None:
         fname="tests/out/1_no_equalise.tif",
     )
 
-    miou_eq, _ = e2e_get_miou(
-        feats_eq, labels, train_cfg, ground_truth_, fname="tests/out/1_equalise.tif"
-    )
+    miou_eq, _ = e2e_get_miou(feats_eq, labels, train_cfg, ground_truth_, fname="tests/out/1_equalise.tif")
     assert miou_eq > miou_no_eq
 
 
@@ -71,9 +69,7 @@ def test_modal(
     out_fname: str = "tests/out/0_seg.tif",
 ):
     # we are modal filtering a seg with small tertiary phase -> mIoU should decrease
-    miou, pred = e2e_get_miou(
-        feature_stack, labels, train_cfg, ground_truth, save=False, run_checks=False
-    )
+    miou, pred = e2e_get_miou(feature_stack, labels, train_cfg, ground_truth, save=False, run_checks=False)
     filtered = postprocess(pred, ("modal_filter",))
     filtered_miou = class_avg_miou(filtered, ground_truth)
     assert filtered_miou < miou
