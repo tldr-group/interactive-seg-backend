@@ -27,7 +27,9 @@ dependencies = [
   "skops>=0.11.0",
   "xgboost>=3.0.5",
   "tifffile",
-  "setuptools"
+  "setuptools",
+  "pydantic>=2.12.5",
+  "pywavelets>=1.9.0",
 ]
 
 [project.optional-dependencies]

@@ -32,14 +32,12 @@
     "use_gpu": false
   },
   "classifier": "random_forest",
-  "classifier_params": {
-    "class_weight": "balanced"
-  },
+  "classifier_params": {},
   "balance_classes": true,
   "shuffle_data": true,
   "n_samples": -1,
   "preprocessing": null,
-  "modal_filter": true,
+  "modal_filter": false,
   "modal_filter_k": 2,
   "autocontext": false,
   "CRF": false,
@@ -58,12 +56,14 @@
       13,
       13
     ],
-    "compat_g": 10,
-    "compat_b": 10,
+    "compat_g": 10.0,
+    "compat_b": 10.0,
     "n_infer": 10
   },
+  "add_dino_features": false,
   "HITL": false,
   "HITL_strategy": "wrong",
   "rules": null,
+  "class_infos": [],
   "use_gpu": false
 }
