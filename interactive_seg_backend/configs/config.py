@@ -1,6 +1,7 @@
 from numpy import log2, logspace
-from dataclasses import dataclass, fields, Field, field, asdict
-from json import dumps, load, dump
+from pydantic import BaseModel
+from dataclasses import fields, Field, field
+from json import load
 from typing import Any, Literal, get_args
 
 from interactive_seg_backend.configs.types import (
@@ -8,7 +9,6 @@ from interactive_seg_backend.configs.types import (
     ClassifierNames,
     Preprocessing,
     HITLStrategy,
-    Rules,
 )
 from typing import cast
 
@@ -35,12 +35,9 @@ strs_per_singlescale_feat: dict[PossibleFeatures, tuple[str, ...]] = {
     "laplacian": ("laplacian",),
     "structure_tensor_eigvals": ("structure_eig_1", "structure_eig_2"),
 }
-# TODO: add json saving / loading
-# TODO: add some example JSONs
 
 
-@dataclass
-class FeatureConfig:
+class FeatureConfig(BaseModel):
     """Set of (classical) features for the image, & the length scales to apply them over."""
 
     name: str = "default"
@@ -127,7 +124,7 @@ class FeatureConfig:
 
     def get_filter_strings(self) -> list[str]:
         out: list[str] = []
-        cls_fields: tuple[Field[Any], ...] = fields(self.__class__)
+        cls_fields: list[str] = [k for k, v in FeatureConfig.model_fields.items()]
 
         singlescale_feats = list(strs_per_singlescale_feat.keys())
 
@@ -150,8 +147,7 @@ class FeatureConfig:
                     out += _get_feat_name(name, 0)
 
         for sigma in self.sigmas:
-            for cls_field in cls_fields:
-                name = cls_field.name
+            for name in cls_fields:
                 if name not in FEATURES:
                     continue
 
@@ -182,15 +178,13 @@ class FeatureConfig:
         return out
 
     def __repr__(self) -> str:
-        to_stringify = asdict(self)
-        out_str = f"FEATURE CONFIG: \n`{self.name}`: {self.desc}\n" + dumps(to_stringify, ensure_ascii=True, indent=2)
-        to_stringify.pop("name")
-        to_stringify.pop("desc")
-        return out_str
+        return self.model_dump_json(ensure_ascii=True, indent=2)
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
-@dataclass
-class CRFParams:
+class CRFParams(BaseModel):
     label_confidence: float = 0.6
     sxy_g: tuple[int, int] = (3, 3)
     sxy_b: tuple[int, int] = (80, 80)  # was (80, 80)
@@ -200,20 +194,36 @@ class CRFParams:
     n_infer: int = 10
 
     def __repr__(self) -> str:
-        to_stringify = asdict(self)
-        out_str = "CRF PARAMS: \n" + dumps(to_stringify, ensure_ascii=True, indent=2)
-        return out_str
+        return self.model_dump_json(ensure_ascii=True, indent=2)
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 default_crf_params = CRFParams()
-KEYS_TO_CLASSES: dict[str, Any] = {
-    "feature_config": FeatureConfig,
-    "CRF_params": CRFParams,
-}
 
 
-@dataclass
-class TrainingConfig:
+class ClassInfo(BaseModel):
+    name: str
+    value: int
+    desc: str = ""
+
+    parent_name: str | None = None
+
+    min_size_px: int | None = None
+    max_size_px: int | None = None
+
+    desired_volume_fraction: float | None = None
+    connectivity_target: Literal["minimise", "maximise", None] = None
+
+    def __repr__(self) -> str:
+        return self.model_dump_json(ensure_ascii=True, indent=2)
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+
+class TrainingConfig(BaseModel):
     """Config for end-to-end training: features, classifier, processing, improvements."""
 
     feature_config: FeatureConfig
@@ -234,22 +244,21 @@ class TrainingConfig:
 
     autocontext: bool = False
     CRF: bool = False
-    CRF_params: CRFParams = field(default_factory=lambda: default_crf_params)
+    CRF_params: CRFParams = default_crf_params
     add_dino_features: bool = False
 
     HITL: bool = False
     HITL_strategy: HITLStrategy = "wrong"
-    rules: tuple[Rules] | None = None
+
+    class_infos: list[ClassInfo] = []
 
     use_gpu: bool = False
 
     def __repr__(self) -> str:
-        name = self.feature_config.name
-        desc = self.feature_config.desc
-        to_stringify = asdict(self)
-        to_stringify["feature_config"] = f"`{name}`: {desc}"
-        out_str = "TRAINING CONFIG: \n" + dumps(to_stringify, ensure_ascii=True, indent=2)
-        return out_str
+        return self.model_dump_json(ensure_ascii=True, indent=2)
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def __post_init__(self) -> None:
         if self.balance_classes and self.classifier in (
@@ -259,28 +268,17 @@ class TrainingConfig:
             self.classifier_params["class_weight"] = "balanced"
 
 
-def load_training_config_json(path: str, key_to_dataclass: dict[str, Any]) -> TrainingConfig:
+def load_training_config_json(path: str) -> TrainingConfig:
     with open(path, "r") as f:
         json_obj: dict[str, object] = load(f)
 
-    res: dict[str, Any] = {}
-    for key, value in json_obj.items():
-        if key in key_to_dataclass:
-            dataclass_def = key_to_dataclass[key]
-            res[key] = dataclass_def(**value)  # type: ignore
-        else:
-            res[key] = value
-    return TrainingConfig(**res)
+    return TrainingConfig.model_validate(json_obj)
 
 
-def save_training_config_json(cfg: TrainingConfig, path: str, key_to_dataclass: dict[str, Any]) -> None:
-    res: dict[str, Any] = {}
-    for key, value in cfg.__dict__.items():
-        if key in key_to_dataclass:  # assume is dataclass
-            value = value.__dict__
-        res[key] = value
+def save_training_config_json(cfg: TrainingConfig, path: str) -> None:
+    res = cfg.model_dump_json(ensure_ascii=False, indent=2)
     with open(path, "w+") as f:
-        dump(res, f, ensure_ascii=False, indent=2)
+        f.write(res)
 
 
 if __name__ == "__main__":
@@ -294,18 +292,17 @@ if __name__ == "__main__":
     print(foo)
     print(c)
     print(" ")
-    t = TrainingConfig(c, "xgb")
+    t = TrainingConfig(feature_config=c, classifier="xgb")
     print(t)
-    save_training_config_json(t, "foo.json", {"feature_config": None, "CRF_params": None})
-    v = load_training_config_json("foo.json", KEYS_TO_CLASSES)
+    save_training_config_json(t, "foo.json")
+    v = load_training_config_json("foo.json")
 
     default_feats = FeatureConfig()
-    default = TrainingConfig(default_feats)
+    default = TrainingConfig(feature_config=default_feats)
     save_training_config_json(
         default,
         "interactive_seg_backend/configs/examples/default.json",
-        KEYS_TO_CLASSES,
     )
 
-    with_crf = TrainingConfig(default_feats, modal_filter=False, CRF=True)
-    save_training_config_json(with_crf, "interactive_seg_backend/configs/examples/crf.json", KEYS_TO_CLASSES)
+    with_crf = TrainingConfig(feature_config=default_feats, modal_filter=False, CRF=True)
+    save_training_config_json(with_crf, "interactive_seg_backend/configs/examples/crf.json")

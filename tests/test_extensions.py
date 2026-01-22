@@ -22,7 +22,7 @@ def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
         "max_features": 2,
         "max_depth": None,
     }
-    return TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
+    return TrainingConfig(feature_config=feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
 image_ = load_image("tests/data/1.tif")

@@ -40,7 +40,7 @@ def test_feat_stack(feat_cfg: FeatureConfig, feature_stack: Arr):
 @pytest.fixture
 def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
     extra_args = {"n_estimators": 200, "max_features": 2, "max_depth": None}
-    return TrainingConfig(feat_cfg, n_samples=10000, classifier_params=extra_args)
+    return TrainingConfig(feature_config=feat_cfg, n_samples=10000, classifier_params=extra_args)
 
 
 MIOU_CUTOFF = 0.55

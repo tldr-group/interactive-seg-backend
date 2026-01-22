@@ -84,8 +84,15 @@ pip install . --no-cache-dir --no-index
 
 ## TODO:
 
+- improvements:
+  - rules: fixed vf, rules (connectivity),
+  - SAM post-proc ?
 - pass down things you care about i.e sample weights into train / train and apply
-- improvements: fixed vf, rules (connectivity), SAM post-proc ?
 - docstrings
-- example notebooks (basics + interactive widget?)
-- pydantic?
+- example notebooks (basics + interactive widget?):
+  - most basic example: image + load label file -> segment
+  - example using gpu
+  - example sawpping out classifier
+  - example using CRF (2 diff configs?) (comparison to w/out & maybe modal filter)
+  - example using autocontext (comparison to w/out)
+  - example adding vulture feats (don't add it as dep)

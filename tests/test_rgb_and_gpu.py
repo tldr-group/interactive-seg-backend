@@ -27,7 +27,7 @@ feat_cfg = FeatureConfig(
 def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
     # extra_args = {"n_estimators": 200, "max_features": 2, "max_depth": None}
     return TrainingConfig(
-        feat_cfg, classifier="xgb", n_samples=10000, classifier_params={}, use_gpu=True
+        feature_config=feat_cfg, classifier="xgb", n_samples=10000, classifier_params={}, use_gpu=True
     )
 
 
@@ -61,14 +61,10 @@ def test_gpu_featurise() -> None:
 
 
 @pytest.mark.skipif(not TORCH_AVAILABLE, reason="requires torch install")
-def test_gpu_e2e(
-    image: Arr, labels: UInt8Arr, train_cfg: TrainingConfig, ground_truth: UInt8Arr
-) -> None:
+def test_gpu_e2e(image: Arr, labels: UInt8Arr, train_cfg: TrainingConfig, ground_truth: UInt8Arr) -> None:
     img_tensor = prepare_for_gpu(image)
     feats = multiscale_features_gpu(img_tensor, feat_cfg)
-    e2e_get_miou(
-        feats, labels, train_cfg, ground_truth, fname="tests/out/0_seg_gpu.tif"
-    )
+    e2e_get_miou(feats, labels, train_cfg, ground_truth, fname="tests/out/0_seg_gpu.tif")
 
 
 if __name__ == "__main__":

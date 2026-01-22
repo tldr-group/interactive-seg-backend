@@ -11,7 +11,7 @@ makedirs("tests/out", exist_ok=True)
 
 
 def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
-    tc = TrainingConfig(feat_cfg, classifier="linear_regression")
+    tc = TrainingConfig(feature_config=feat_cfg, classifier="linear_regression")
     e2e_get_miou(
         feature_stack,
         labels,
@@ -25,9 +25,7 @@ def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 
 
 def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
-    tc = TrainingConfig(
-        feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000}
-    )
+    tc = TrainingConfig(feature_config=feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000})
     e2e_get_miou(
         feature_stack,
         labels,
@@ -41,7 +39,7 @@ def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 
 
 def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
-    tc = TrainingConfig(feat_cfg, classifier="xgb")
+    tc = TrainingConfig(feature_config=feat_cfg, classifier="xgb")
     e2e_get_miou(
         feature_stack,
         labels,
@@ -59,7 +57,7 @@ MAX_ITERS = 3000
 
 def test_mlp(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     tc = TrainingConfig(
-        feat_cfg,
+        feature_config=feat_cfg,
         classifier="mlp",
         classifier_params={
             "hidden_layer_sizes": (50, 50, 50),
