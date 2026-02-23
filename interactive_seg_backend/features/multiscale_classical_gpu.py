@@ -5,7 +5,7 @@ from time import time
 
 from interactive_seg_backend.configs import FeatureConfig
 from interactive_seg_backend.utils import rotate_ts, logger
-from .gpu_utils import (
+from interactive_seg_backend.features.gpu_utils import (
     transfer_from_gpu,
     compute_zero_padding,
     unpack_2d_ks,
@@ -64,8 +64,9 @@ def median_blur(input: torch.Tensor, kernel_size: tuple[int, int]) -> torch.Tens
     return median
 
 
-def bilateral_blur(
+def guided_bilateral(
     input: torch.Tensor,
+    guidance: torch.Tensor,
     kernel_size: tuple[int, int] | int,
     sigma_color: float | torch.Tensor,
     sigmas_space: tuple[float, float],
@@ -80,8 +81,8 @@ def bilateral_blur(
     padded_input = pad(input, (pad_x, pad_x, pad_y, pad_y), mode=border_type)
     unfolded_input = padded_input.unfold(2, ky, 1).unfold(3, kx, 1).flatten(-2)  # (B, C, H, W, Ky x Kx)
 
-    guidance = input
-    unfolded_guidance = unfolded_input
+    padded_guidance = pad(guidance, (pad_x, pad_x, pad_y, pad_y), mode=border_type)
+    unfolded_guidance = padded_guidance.unfold(2, ky, 1).unfold(3, kx, 1).flatten(-2)
 
     diff = unfolded_guidance - guidance.unsqueeze(-1)
     if color_distance_type == "l1":
@@ -98,6 +99,25 @@ def bilateral_blur(
     kernel = space_kernel * color_kernel
     out = (unfolded_input * kernel).sum(-1) / kernel.sum(-1)
     return out
+
+
+def bilateral_blur(
+    input: torch.Tensor,
+    kernel_size: tuple[int, int] | int,
+    sigma_color: float | torch.Tensor,
+    sigmas_space: tuple[float, float],
+    border_type: str = "reflect",
+    color_distance_type: str = "l1",
+) -> torch.Tensor:
+    return guided_bilateral(
+        input,
+        guidance=input,
+        kernel_size=kernel_size,
+        sigma_color=sigma_color,
+        sigmas_space=sigmas_space,
+        border_type=border_type,
+        color_distance_type=color_distance_type,
+    )
 
 
 # %% ===================================SINGLESCALE FEATURES===================================
