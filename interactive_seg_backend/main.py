@@ -87,10 +87,15 @@ def apply(
     return seg, probs_2D
 
 
-def train_and_apply(features: Arr, labels: UInt8Arr, train_cfg: TrainingConfig) -> tuple[UInt8Arr, Arr, Classifier]:
+def train_and_apply(
+    features: Arr,
+    labels: UInt8Arr,
+    train_cfg: TrainingConfig,
+    image: np.ndarray | None = None,
+) -> tuple[UInt8Arr, Arr, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)
     model = train(model, fit, target, None)
-    pred, probs = apply(model, features, train_cfg, labels=labels)
+    pred, probs = apply(model, features, train_cfg, labels=labels, image=image)
     return pred, probs, model
