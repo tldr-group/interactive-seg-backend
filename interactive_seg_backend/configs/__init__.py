@@ -1,6 +1,7 @@
 __all__ = [
     "FeatureConfig",
     "CRFParams",
+    "ClassInfo",
     "TrainingConfig",
     "load_training_config_json",
     "NPFloatArray",
@@ -12,7 +13,7 @@ __all__ = [
     "Arrlike",
     "NPUIntArraylike",
 ]
-from .config import FeatureConfig, TrainingConfig, CRFParams, load_training_config_json
+from .config import FeatureConfig, TrainingConfig, CRFParams, ClassInfo, load_training_config_json
 from .types import (
     NPFloatArray,
     NPIntArray,
