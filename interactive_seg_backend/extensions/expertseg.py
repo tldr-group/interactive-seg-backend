@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 import numpy as np
 
 from typing import Any
-from interactive_seg_backend.configs import ClassInfo, Arr, UInt8Arr, NPFloatArray
+from interactive_seg_backend.configs import ClassInfo, NPFloatArray, NPUIntArray
 from interactive_seg_backend.classifiers import XGBCPU
 
 
@@ -39,6 +39,9 @@ class ExpertSegClassifier(XGBCPU):
         self.lambd_vf = lambd_vf
         self.lambd_conn = lambd_conn
 
+        extra_args["objective"] = "multi:softprob"
+        extra_args["eta"] = 0.1
+
         self.params = extra_args
 
         self.do_vf_loss = any([(info.desired_volume_fraction is not None) for info in class_infos])
@@ -52,34 +55,49 @@ class ExpertSegClassifier(XGBCPU):
 
     def fit(
         self,
-        train_data: Arr,
-        target_data: UInt8Arr,
-        sample_weights: Arr | None = None,
+        train_data: NPFloatArray,
+        target_data: NPUIntArray,
+        sample_weights: NPFloatArray | None = None,
     ):
+        ih, iw, c = train_data.shape
+        train_data = train_data.reshape(-1, c)
+        target_data = target_data.reshape(-1)
+
         label_mask = np.nonzero(target_data)
         labels = target_data[label_mask[0]]
-        labels_onehot = OneHotEncoder(sparse_output=False).fit_transform(labels.reshape(-1, 1))
+
+        labels_onehot = OneHotEncoder(sparse_output=False).fit_transform(np.expand_dims(labels, -1))
+
+        print(
+            f"Full features shape: {train_data.shape}, train features shape: {train_data[label_mask[0], :].shape}, train target shape: {labels.shape}, train target onehot shape: {labels_onehot.shape}"
+        )
 
         full_img_dmat = DMatrix(data=train_data)
         train_dmat = DMatrix(data=train_data[label_mask[0], :], label=labels - 1)
 
-        model = Booster(self.params, [train_dmat])
-
         n_classes = labels_onehot.shape[-1]
         targ_vfs = _get_target_vf_dist(n_classes, self.class_infos)
 
+        self.params["num_class"] = n_classes
+        model = Booster(self.params, [train_dmat])
+
+        print(f"({ih, iw, c})")
+        print(train_data.shape, labels.shape)
+
         for i in range(self.n_epochs):
-            full_img_pred = self.model.predict(full_img_dmat)
+            full_img_pred = model.predict(full_img_dmat)
             train_pred = full_img_pred[label_mask[0]]
 
             g_softmax, h_softmax = softmax_obj(train_pred, labels_onehot)
             g, h = g_softmax, h_softmax
 
             if self.do_vf_loss:
-                g_vf_full, h_vf_full, _ = volume_fraction_obj(full_img_pred, self.lambd_vf, targ_vfs)
-                g_vf, h_vf = g_vf_full[label_mask[0]], h_vf_full[label_mask[0]]
+                _, g_vf_full, _ = volume_fraction_obj(full_img_pred, self.lambd_vf, targ_vfs)
+                # print(g_vf_full.shape, g.shape)
+
+                g_vf = g_vf_full[label_mask[0]]
+                # print(g.shape, g_vf.shape)
                 g += g_vf
-                h += h_vf
 
             model.boost(train_dmat, i, g, h)
 
@@ -87,26 +105,9 @@ class ExpertSegClassifier(XGBCPU):
 
         return self
 
-    def predict_proba(self, features_flat: Arr) -> Arr:
-        return self.model.predict(features_flat)
-
-    # def predict(self, features: Arr) -> UInt8Arr:
-    #     return super().predict(features)
-
-
-# def softmax_obj(preds: np.ndarray, dtrain: DMatrix):
-#     # Label is a vector of class indices for each input example
-#     labels = dtrain.get_label()
-
-#     # When objective=softprob, preds has shape (N, K). Convert the labels
-#     # to one-hot encoding to match this shape.
-#     labels = OneHotEncoder(sparse_output=False).fit_transform(labels.reshape(-1, 1))
-
-#     grad = preds - labels
-#     hess = 2.0 * preds * (1.0 - preds)
-
-#     # XGBoost wants them to be returned as 1-d vectors
-#     return grad.flatten(), hess.flatten()
+    def predict_proba(self, features_flat: NPFloatArray) -> NPFloatArray:
+        dmat = DMatrix(data=features_flat)
+        return self.model.predict(dmat)
 
 
 def softmax_obj(preds: np.ndarray, labels_onehot: np.ndarray):
@@ -114,7 +115,7 @@ def softmax_obj(preds: np.ndarray, labels_onehot: np.ndarray):
     hess = 2.0 * preds * (1.0 - preds)
 
     # XGBoost wants them to be returned as 1-d vectors
-    return grad.flatten(), hess.flatten()
+    return grad, hess
 
 
 def _get_target_vf_dist(n_classes: int, class_infos: list[ClassInfo]) -> NPFloatArray:
@@ -133,14 +134,16 @@ def _get_target_vf_dist(n_classes: int, class_infos: list[ClassInfo]) -> NPFloat
 def volume_fraction_obj(
     whole_img_pred: np.ndarray, lambd: float, target_vf_distr: np.ndarray
 ) -> tuple[NPFloatArray, NPFloatArray, int | float]:
-    n_px = whole_img_pred.shape[0]
-    pred_onehot = whole_img_pred / np.max(whole_img_pred, axis=0)
-    # mask pred_vf where target_vf is not defined
-    pred_vf_distr = np.mean(pred_onehot, axis=0) * np.where(target_vf_distr > 0)
+    n_px, n_classes = whole_img_pred.shape
+
+    pred_onehot = np.eye(n_classes)[np.argmax(whole_img_pred, axis=1)]
+
+    # TODO:  mask pred_vf where target_vf is not defined
+    pred_vf_distr = np.mean(pred_onehot, axis=0)  # * np.where(target_vf_distr > 0)
 
     loss = lambd * np.linalg.norm(pred_vf_distr - target_vf_distr) ** 2  # for the whole image
     grad_row = 2 * lambd * (pred_vf_distr - target_vf_distr)
 
-    grad = np.tile(grad_row, n_px)
-    grad = np.array([grad_row] * len(whole_img_pred))
-    return loss, grad.flatten(), 0.0
+    grad = np.tile(grad_row, (n_px, 1))
+    # grad = np.array([grad_row] * len(whole_img_pred))
+    return loss, grad, 0.0
