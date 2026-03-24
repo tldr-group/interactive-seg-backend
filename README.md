@@ -10,8 +10,6 @@ To install:
 git clone https://github.com/tldr-group/interactive-seg-backend
 cd interactive-seg-backend
 pip install . '.[cpu]'
-# requires some extra build steps
-pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
 ### Pip:
@@ -44,12 +42,10 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 CPU-only:
 ```bash
 uv sync --extra cpu
-uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
 ```bash
 uv sync --extra gpu
-uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
 ```
 
 
