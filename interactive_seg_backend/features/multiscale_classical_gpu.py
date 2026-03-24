@@ -38,7 +38,7 @@ Apache 2.0
 """
 
 
-def median_blur(input: torch.Tensor, kernel_size: tuple[int, int]) -> torch.Tensor:
+def median_blur(input: "torch.Tensor", kernel_size: tuple[int, int]) -> "torch.Tensor":
     r"""
     Blur an image using the median filter.
     """
@@ -51,28 +51,28 @@ def median_blur(input: torch.Tensor, kernel_size: tuple[int, int]) -> torch.Tens
     padding: tuple[int, int] = compute_zero_padding(kernel_size)
 
     # prepare kernel
-    kernel: torch.Tensor = get_binary_kernel2d(kernel_size).to(input)
+    kernel: "torch.Tensor" = get_binary_kernel2d(kernel_size).to(input)
     b, c, h, w = input.shape
 
     # map the local window to single vector
-    features: torch.Tensor = conv2d(input.reshape(b * c, 1, h, w), kernel, padding=padding, stride=1)
+    features: "torch.Tensor" = conv2d(input.reshape(b * c, 1, h, w), kernel, padding=padding, stride=1)
     features = features.view(b, c, -1, h, w)  # BxCx(K_h * K_w)xHxW
 
     # compute the median along the feature axis
-    median: torch.Tensor = torch.median(features, dim=2)[0]
+    median: "torch.Tensor" = torch.median(features, dim=2)[0]
 
     return median
 
 
 def guided_bilateral(
-    input: torch.Tensor,
-    guidance: torch.Tensor,
+    input: "torch.Tensor",
+    guidance: "torch.Tensor",
     kernel_size: tuple[int, int] | int,
-    sigma_color: float | torch.Tensor,
+    sigma_color: "float | torch.Tensor",
     sigmas_space: tuple[float, float],
     border_type: str = "reflect",
     color_distance_type: str = "l1",
-) -> torch.Tensor:
+) -> "torch.Tensor":
     "Single implementation for both Bilateral Filter and Joint Bilateral Filter"
 
     ky, kx = unpack_2d_ks(kernel_size)
@@ -102,13 +102,13 @@ def guided_bilateral(
 
 
 def bilateral_blur(
-    input: torch.Tensor,
+    input: "torch.Tensor",
     kernel_size: tuple[int, int] | int,
-    sigma_color: float | torch.Tensor,
+    sigma_color: "float | torch.Tensor",
     sigmas_space: tuple[float, float],
     border_type: str = "reflect",
     color_distance_type: str = "l1",
-) -> torch.Tensor:
+) -> "torch.Tensor":
     return guided_bilateral(
         input,
         guidance=input,
@@ -375,91 +375,95 @@ def zero_scale_filters(
     return out_filtered
 
 
-@torch.no_grad()
 def multiscale_features_gpu(
     raw_img: "torch.Tensor",
     config: FeatureConfig,
     reshape_squeeze: bool = True,
 ) -> "torch.Tensor":
-    logger.info(f"GPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
-    dtype = raw_img.dtype
-    _, C, _, _ = raw_img.shape
-    amax = torch.amax(raw_img)
-    converted_img = (raw_img * (1 / amax)).to(dtype)
+    with torch.no_grad():
+        logger.info(f"GPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
+        dtype = raw_img.dtype
+        _, C, _, _ = raw_img.shape
+        amax = torch.amax(raw_img)
+        converted_img = (raw_img * (1 / amax)).to(dtype)
 
-    device = raw_img.device
-    mult = 0.4 if config.add_weka_sigma_multiplier else 1
-    gauss_kernel = get_multiscale_gaussian_kernel(device, dtype, config.sigmas, C, mult)
-    sobel_kernel = get_sobel_kernel(device, dtype, C)
-    sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
+        device = raw_img.device
+        mult = 0.4 if config.add_weka_sigma_multiplier else 1
+        gauss_kernel = get_multiscale_gaussian_kernel(device, dtype, config.sigmas, C, mult)
+        sobel_kernel = get_sobel_kernel(device, dtype, C)
+        sobel_squared = get_sobel_kernel(device, dtype, 2 * C)
 
-    membrane_kernel = get_membrane_proj_kernel(device, dtype, C, config.membrane_patch_size, config.membrane_thickness)
-
-    gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
-
-    features: list["torch.Tensor"]
-    if config.add_zero_scale_features:
-        features = zero_scale_filters(
-            converted_img,
-            sobel_kernel,
-            sobel_squared,
-            config.sobel_filter,
-            config.hessian_filter,
-            config.add_mod_trace_det_hessian,
+        membrane_kernel = get_membrane_proj_kernel(
+            device, dtype, C, config.membrane_patch_size, config.membrane_thickness
         )
-    else:
-        features = []
 
-    N_sigmas = len(config.sigmas)
-    for i, sigma in enumerate(config.sigmas):
-        s = int(sigma)
-        blurred = gaussian_blurs[0:1, i::N_sigmas]
-        edges = convolve(blurred, sobel_kernel, True)
-        if config.gaussian_blur:
-            features.append(blurred)
-        if config.sobel_filter:
-            features.append(get_gradient_mag(edges))
-        if config.hessian_filter:
-            hess = singescale_hessian(edges, sobel_squared, config.add_mod_trace_det_hessian)
-            features.append(hess)
+        gaussian_blurs = convolve(converted_img, gauss_kernel, norm=False)
 
-        if config.mean:
-            features.append(singlescale_mean(raw_img, s))
-        if config.minimum:
-            features.append(singlescale_minimum(raw_img, s))
-        if config.maximum:
-            features.append(singlescale_maximum(raw_img, s))
-        if config.median:
-            features.append(singlescale_median(raw_img, s))
-        if config.laplacian:
-            features.append(singlescale_laplacian(blurred))
+        features: list["torch.Tensor"]
+        if config.add_zero_scale_features:
+            features = zero_scale_filters(
+                converted_img,
+                sobel_kernel,
+                sobel_squared,
+                config.sobel_filter,
+                config.hessian_filter,
+                config.add_mod_trace_det_hessian,
+            )
+        else:
+            features = []
 
-    if config.difference_of_gaussians:
-        features.append(difference_of_gaussians(gaussian_blurs, N_sigmas))
-    if config.membrane_projections:
-        projections = membrane_projections(converted_img, membrane_kernel, C)
-        features.append(projections)
-    if config.bilateral:
-        features.append(bilateral(raw_img))
+        N_sigmas = len(config.sigmas)
+        for i, sigma in enumerate(config.sigmas):
+            s = int(sigma)
+            blurred = gaussian_blurs[0:1, i::N_sigmas]
+            edges = convolve(blurred, sobel_kernel, True)
+            if config.gaussian_blur:
+                features.append(blurred)
+            if config.sobel_filter:
+                features.append(get_gradient_mag(edges))
+            if config.hessian_filter:
+                hess = singescale_hessian(edges, sobel_squared, config.add_mod_trace_det_hessian)
+                features.append(hess)
 
-    features_out = torch.cat(features, dim=1)
-    if config.cast_to == "f16":
-        features_out = features_out.to(torch.float16)
-    elif config.cast_to == "f64":
-        features_out = features_out.to(torch.float32)
-    else:
-        features_out = features_out.to(torch.float64)
+            if config.mean:
+                features.append(singlescale_mean(raw_img, s))
+            if config.minimum:
+                features.append(singlescale_minimum(raw_img, s))
+            if config.maximum:
+                features.append(singlescale_maximum(raw_img, s))
+            if config.median:
+                features.append(singlescale_median(raw_img, s))
+            if config.laplacian:
+                features.append(singlescale_laplacian(blurred))
 
-    if reshape_squeeze:
-        features_out = torch.squeeze(features_out, 0)
-        features_out = torch.permute(features_out, (1, 2, 0))
-    logger.info(f"Features out: {features_out.shape}")
+        if config.difference_of_gaussians:
+            features.append(difference_of_gaussians(gaussian_blurs, N_sigmas))
+        if config.membrane_projections:
+            projections = membrane_projections(converted_img, membrane_kernel, C)
+            features.append(projections)
+        if config.bilateral:
+            features.append(bilateral(raw_img))
+
+        features_out = torch.cat(features, dim=1)
+        if config.cast_to == "f16":
+            features_out = features_out.to(torch.float16)
+        elif config.cast_to == "f64":
+            features_out = features_out.to(torch.float32)
+        else:
+            features_out = features_out.to(torch.float64)
+
+        if reshape_squeeze:
+            features_out = torch.squeeze(features_out, 0)
+            features_out = torch.permute(features_out, (1, 2, 0))
+        logger.info(f"Features out: {features_out.shape}")
     return features_out
 
 
-torch.cuda.empty_cache()
-device = torch.device("cuda:0")
 if __name__ == "__main__":
+    if not TORCH_AVAILABLE:
+        raise ImportError("Torch not available, cannot run gpu feature test")
+    device = torch.device("cuda:0")
+    torch.cuda.empty_cache()
     cfg = FeatureConfig(
         name="default",
         cast_to="f16",

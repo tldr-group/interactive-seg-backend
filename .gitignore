@@ -178,3 +178,5 @@ tests/out/*
 apply/
 interactive_seg_backend/configs/examples/*
 uv.lock
+
+expertsegmentation

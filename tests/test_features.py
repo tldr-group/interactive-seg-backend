@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import numpy.typing as npt
-import torch
+
 from math import isclose, pi
 from skimage.metrics import mean_squared_error
 from tifffile import imread
@@ -9,6 +9,14 @@ from tifffile import imread
 from interactive_seg_backend import FeatureConfig
 from interactive_seg_backend import multiscale_classical_cpu as ft
 from interactive_seg_backend import multiscale_classical_gpu as ft_gpu
+
+from interactive_seg_backend.features import (
+    TORCH_AVAILABLE,
+)
+
+if TORCH_AVAILABLE:
+    import torch
+
 
 from typing import cast
 
@@ -201,6 +209,7 @@ def compare_two_stacks(
 
 
 class TestGPUCPUEquivalence:
+    @pytest.mark.skipif(not TORCH_AVAILABLE, reason="requires torch install")
     def test_e2e_equiv(self) -> None:
         cfg = FeatureConfig(
             sigmas=(1.0, 2.0, 4.0, 8.0),

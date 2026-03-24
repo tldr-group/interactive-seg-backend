@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 from typing import cast, TYPE_CHECKING, TypeGuard
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     import torch
 
 
-def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype" = torch.float32) -> "torch.Tensor":
+def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype | None" = None) -> "torch.Tensor":
     ndims = len(arr.shape)
     if ndims == 2:
         arr = np.expand_dims(arr, (0, 1))  # (H, W) -> (1, 1, H, W)
@@ -30,6 +31,9 @@ def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype
 
 
 def check_if_tensor(arr: AnyArr) -> TypeGuard["torch.Tensor"]:
+    if not TORCH_AVAILABLE:
+        return False
+
     return isinstance(arr, torch.Tensor)
 
 
@@ -99,8 +103,8 @@ def unpack_2d_ks(kernel_size: tuple[int, int] | int) -> tuple[int, int]:
 
 
 def get_binary_kernel2d(
-    window_size: tuple[int, int] | int, *, device: torch.device | None = None, dtype: torch.dtype = torch.float32
-) -> torch.Tensor:
+    window_size: tuple[int, int] | int, *, device: "torch.device | None " = None, dtype: "torch.dtype | None" = None
+) -> "torch.Tensor":
     """Create a binary kernel to extract the patches.
 
     If the window size is HxW will create a (H*W)x1xHxW kernel.
@@ -117,7 +121,7 @@ def get_binary_kernel2d(
     return kernel.view(window_range, 1, ky, kx)
 
 
-def _gaussian(window_size: int, sigma: float) -> torch.Tensor:
+def _gaussian(window_size: int, sigma: float) -> "torch.Tensor":
     device, dtype = None, None
     if isinstance(sigma, torch.Tensor):
         device, dtype = sigma.device, sigma.dtype
@@ -128,7 +132,7 @@ def _gaussian(window_size: int, sigma: float) -> torch.Tensor:
     return gauss / gauss.sum()
 
 
-def _get_gaussian_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> torch.Tensor:
+def _get_gaussian_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> "torch.Tensor":
     r"""Function that returns Gaussian filter coefficients.
 
     Args:
@@ -160,9 +164,9 @@ def get_gaussian_kernel2d(
     kernel_size: tuple[int, int],
     sigma: tuple[float, float],
     force_even: bool = False,
-    device: torch.device | None = None,
-    dtype: torch.dtype | None = None,
-) -> torch.Tensor:
+    device: "torch.device | None" = None,
+    dtype: "torch.dtype | None" = None,
+) -> "torch.Tensor":
     r"""Function that returns Gaussian filter matrix coefficients.
 
     Args:

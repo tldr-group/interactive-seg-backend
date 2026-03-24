@@ -48,6 +48,6 @@ class XGBGPU(RandomForest):
         h, w, c = features.shape
         features_flat = features.reshape((h * w, c))
         data = DMatrix(features_flat)
-        probs = self.predict_proba(data)
+        probs = self.predict_proba(data)  # type: ignore
         seg_flat = np.argmax(probs, axis=-1)
         return seg_flat.reshape((h, w))
