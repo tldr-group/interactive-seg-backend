@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 from typing import cast, TYPE_CHECKING, TypeGuard
 
-from interactive_seg_backend.configs.types import Arrlike, AnyArr
+from interactive_seg_backend.configs.types import Arrlike, AnyArr, CastTypes
 
 try:
     import torch
@@ -15,6 +15,17 @@ TORCH_AVAILABLE = torch_imported
 
 if TYPE_CHECKING:
     import torch
+
+
+def get_dtype(dtype: CastTypes) -> "torch.dtype":
+    if dtype == "f16":
+        return torch.float16
+    elif dtype == "f32":
+        return torch.float32
+    elif dtype == "f64":
+        return torch.float64
+    else:
+        raise ValueError(f"Invalid dtype: {dtype}")
 
 
 def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype | None" = None) -> "torch.Tensor":

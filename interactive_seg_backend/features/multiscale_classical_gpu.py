@@ -6,6 +6,7 @@ from time import time
 from interactive_seg_backend.configs import FeatureConfig
 from interactive_seg_backend.utils import rotate_ts, logger
 from interactive_seg_backend.features.gpu_utils import (
+    get_dtype,
     transfer_from_gpu,
     compute_zero_padding,
     unpack_2d_ks,
@@ -382,7 +383,7 @@ def multiscale_features_gpu(
 ) -> "torch.Tensor":
     with torch.no_grad():
         logger.info(f"GPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
-        dtype = raw_img.dtype
+        dtype = get_dtype(config.cast_to)
         _, C, _, _ = raw_img.shape
         amax = torch.amax(raw_img)
         converted_img = (raw_img * (1 / amax)).to(dtype)
@@ -445,17 +446,11 @@ def multiscale_features_gpu(
             features.append(bilateral(raw_img))
 
         features_out = torch.cat(features, dim=1)
-        if config.cast_to == "f16":
-            features_out = features_out.to(torch.float16)
-        elif config.cast_to == "f64":
-            features_out = features_out.to(torch.float32)
-        else:
-            features_out = features_out.to(torch.float64)
 
         if reshape_squeeze:
             features_out = torch.squeeze(features_out, 0)
             features_out = torch.permute(features_out, (1, 2, 0))
-        logger.info(f"Features out: {features_out.shape}")
+        logger.info(f"Features out: {features_out.shape}, {features_out.dtype}")
     return features_out
 
 

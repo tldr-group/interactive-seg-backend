@@ -29,6 +29,7 @@ Arrlike = TypeVar(
 )
 
 NPUIntArraylike = TypeVar("NPUIntArraylike", npt.NDArray[np.uint8], "Tensor")
+CastTypes = Literal["f16", "f32", "f64"]
 
 PossibleFeatures = Literal[
     "gaussian_blur",
