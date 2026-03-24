@@ -6,20 +6,19 @@ __all__ = [
     "NPFloatArray",
     "NPIntArray",
     "NPUIntArray",
-    "UInt8Arr",
+    "NPUIntArray",
     "Arr",
     "AnyArr",
     "Arrlike",
-    "UInt8Arrlike",
+    "NPUIntArraylike",
 ]
 from .config import FeatureConfig, TrainingConfig, CRFParams, load_training_config_json
 from .types import (
     NPFloatArray,
     NPIntArray,
     NPUIntArray,
-    UInt8Arr,
     Arr,
     AnyArr,
     Arrlike,
-    UInt8Arrlike,
+    NPUIntArraylike,
 )

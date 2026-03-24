@@ -3,7 +3,8 @@ import pytest
 from interactive_seg_backend.configs import (
     Arr,
     AnyArr,
-    UInt8Arr,
+    NPFloatArray,
+    NPUIntArray,
     FeatureConfig,
     TrainingConfig,
 )
@@ -27,11 +28,11 @@ def test_load_image(image: Arr) -> None:
     assert image.shape == TEST_IMAGE_SHAPE
 
 
-def test_load_labels(labels: UInt8Arr) -> None:
+def test_load_labels(labels: NPUIntArray) -> None:
     assert labels.shape == TEST_IMAGE_SHAPE
 
 
-def test_feat_stack(feat_cfg: FeatureConfig, feature_stack: Arr):
+def test_feat_stack(feat_cfg: FeatureConfig, feature_stack: NPFloatArray):
     _, _, c = feature_stack.shape
     n_feats_from_config = len(feat_cfg.get_filter_strings())
     assert n_feats_from_config == c
@@ -48,15 +49,15 @@ MIOU_CUTOFF = 0.55
 
 def e2e_get_miou(
     features: AnyArr,
-    label: UInt8Arr,
+    label: NPUIntArray,
     cfg: TrainingConfig,
-    ground_truth: UInt8Arr,
+    ground_truth: NPUIntArray,
     save: bool = True,
     fname: str = "tests/out/0_seg.tif",
     run_checks: bool = True,
     miou_cutoff: float = MIOU_CUTOFF,
-) -> tuple[float, UInt8Arr]:
-    features = transfer_from_gpu(features)
+) -> tuple[float, NPUIntArray]:
+    features: NPFloatArray = transfer_from_gpu(features)
     fit, target = get_labelled_training_data_from_stack(features, label)
     fit, target = shuffle_sample_training_data(fit, target, cfg.shuffle_data, cfg.n_samples)
     model = get_model(cfg.classifier, cfg.classifier_params, cfg.use_gpu)
@@ -81,9 +82,9 @@ def e2e_get_miou(
 
 def test_e2e(
     feature_stack: Arr,
-    labels: UInt8Arr,
+    labels: NPUIntArray,
     train_cfg: TrainingConfig,
-    ground_truth: UInt8Arr,
+    ground_truth: NPUIntArray,
     out_fname: str = "tests/out/0_seg.tif",
 ):
     e2e_get_miou(feature_stack, labels, train_cfg, ground_truth, True, out_fname, True)

@@ -1,6 +1,6 @@
 import pytest
 
-from interactive_seg_backend.configs import Arr, UInt8Arr, TrainingConfig, FeatureConfig
+from interactive_seg_backend.configs import Arr, NPUIntArray, TrainingConfig, FeatureConfig, NPFloatArray
 from interactive_seg_backend.file_handling import (
     save_segmentation,
     load_image,
@@ -45,10 +45,10 @@ def test_autocontext_features(
 @pytest.mark.skipif(not CRF_AVAILABLE, reason="requires CRF be installed")
 def test_crf(
     image: Arr,
-    feature_stack: Arr,
-    labels: UInt8Arr,
+    feature_stack: NPFloatArray,
+    labels: NPUIntArray,
     train_cfg: TrainingConfig,
-    ground_truth: UInt8Arr,
+    ground_truth: NPUIntArray,
     out_fname: str = "tests/out/0_seg.tif",
 ):
     _, probs, _ = train_and_apply(feature_stack, labels, train_cfg)

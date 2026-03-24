@@ -1,7 +1,9 @@
+from __future__ import annotations
 import numpy as np
 from typing import cast, TYPE_CHECKING, TypeGuard
 
-from interactive_seg_backend.configs.types import Arrlike, AnyArr
+from interactive_seg_backend.configs.types import Arrlike, AnyArr, CastTypes
+from interactive_seg_backend.utils import logger
 
 try:
     import torch
@@ -10,13 +12,35 @@ try:
 except ImportError:
     print("GPU dependencies not installed!")
     torch_imported = False
+
+try:
+    import cupy as cp
+
+    cupy_imported = True
+except ImportError:
+    print("GPU dependencies not installed!")
+    cupy_imported = False
+
+CUPY_AVAILABLE = cupy_imported
 TORCH_AVAILABLE = torch_imported
 
 if TYPE_CHECKING:
     import torch
+    import cupy as cp
 
 
-def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype" = torch.float32) -> "torch.Tensor":
+def get_dtype(dtype: CastTypes) -> "torch.dtype":
+    if dtype == "f16":
+        return torch.float16
+    elif dtype == "f32":
+        return torch.float32
+    elif dtype == "f64":
+        return torch.float64
+    else:
+        raise ValueError(f"Invalid dtype: {dtype}")
+
+
+def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype | None" = None) -> "torch.Tensor":
     ndims = len(arr.shape)
     if ndims == 2:
         arr = np.expand_dims(arr, (0, 1))  # (H, W) -> (1, 1, H, W)
@@ -29,7 +53,19 @@ def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype
     return tensor
 
 
+def optionally_pass_to_cupy(arr: np.ndarray) -> "cp.ndarray | np.ndarray":
+    if CUPY_AVAILABLE:
+        assert cp is not None
+        return cp.asarray(arr)
+    else:
+        logger.warning("CuPy not available, falling back to NumPy array.")
+        return arr
+
+
 def check_if_tensor(arr: AnyArr) -> TypeGuard["torch.Tensor"]:
+    if not TORCH_AVAILABLE:
+        return False
+
     return isinstance(arr, torch.Tensor)
 
 
@@ -99,8 +135,8 @@ def unpack_2d_ks(kernel_size: tuple[int, int] | int) -> tuple[int, int]:
 
 
 def get_binary_kernel2d(
-    window_size: tuple[int, int] | int, *, device: torch.device | None = None, dtype: torch.dtype = torch.float32
-) -> torch.Tensor:
+    window_size: tuple[int, int] | int, *, device: "torch.device | None " = None, dtype: "torch.dtype | None" = None
+) -> "torch.Tensor":
     """Create a binary kernel to extract the patches.
 
     If the window size is HxW will create a (H*W)x1xHxW kernel.
@@ -117,7 +153,7 @@ def get_binary_kernel2d(
     return kernel.view(window_range, 1, ky, kx)
 
 
-def _gaussian(window_size: int, sigma: float) -> torch.Tensor:
+def _gaussian(window_size: int, sigma: float) -> "torch.Tensor":
     device, dtype = None, None
     if isinstance(sigma, torch.Tensor):
         device, dtype = sigma.device, sigma.dtype
@@ -128,7 +164,7 @@ def _gaussian(window_size: int, sigma: float) -> torch.Tensor:
     return gauss / gauss.sum()
 
 
-def _get_gaussian_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> torch.Tensor:
+def _get_gaussian_kernel1d(kernel_size: int, sigma: float, force_even: bool = False) -> "torch.Tensor":
     r"""Function that returns Gaussian filter coefficients.
 
     Args:
@@ -160,9 +196,9 @@ def get_gaussian_kernel2d(
     kernel_size: tuple[int, int],
     sigma: tuple[float, float],
     force_even: bool = False,
-    device: torch.device | None = None,
-    dtype: torch.dtype | None = None,
-) -> torch.Tensor:
+    device: "torch.device | None" = None,
+    dtype: "torch.dtype | None" = None,
+) -> "torch.Tensor":
     r"""Function that returns Gaussian filter matrix coefficients.
 
     Args:

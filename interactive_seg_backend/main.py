@@ -9,7 +9,7 @@ from interactive_seg_backend.features import (
     transfer_from_gpu,
     concat_feats,
 )
-from interactive_seg_backend.configs.types import Arr, AnyArr, UInt8Arr, Arrlike
+from interactive_seg_backend.configs.types import AnyArr, Arrlike, NPFloatArray, NPUIntArray
 
 from interactive_seg_backend.classifiers import Classifier
 from interactive_seg_backend.core import (
@@ -32,7 +32,7 @@ FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
 
 
 def featurise(
-    image: Arr,
+    image: NPFloatArray,
     training_cfg: TrainingConfig,
     save_path: str = "",
     custom_fns: list[tuple[FeatureFunction, bool]] = [],
@@ -61,11 +61,11 @@ def featurise(
 
 def apply(
     model: Classifier,
-    features: Arr,
+    features: NPFloatArray,
     training_cfg: TrainingConfig,
     image: np.ndarray | None = None,
-    labels: UInt8Arr | None = None,
-) -> tuple[UInt8Arr, Arr]:
+    labels: NPUIntArray | None = None,
+) -> tuple[NPUIntArray, NPFloatArray]:
     seg, probs_2D = apply_(model, features)
     _, _, n_classes = probs_2D.shape
 
@@ -88,11 +88,11 @@ def apply(
 
 
 def train_and_apply(
-    features: Arr,
-    labels: UInt8Arr,
+    features: NPFloatArray,
+    labels: NPUIntArray,
     train_cfg: TrainingConfig,
     image: np.ndarray | None = None,
-) -> tuple[UInt8Arr, Arr, Classifier]:
+) -> tuple[NPUIntArray, NPFloatArray, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)

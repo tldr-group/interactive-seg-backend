@@ -1,5 +1,5 @@
 import pytest
-from interactive_seg_backend.configs import Arr, FeatureConfig
+from interactive_seg_backend.configs import Arr, NPFloatArray, FeatureConfig, NPUIntArray
 from interactive_seg_backend.features import multiscale_features
 from interactive_seg_backend.file_handling import (
     load_image,
@@ -23,10 +23,10 @@ def feat_cfg() -> FeatureConfig:
 
 
 @pytest.fixture(scope="module")
-def feature_stack(image: Arr, feat_cfg: FeatureConfig) -> Arr:
+def feature_stack(image: Arr, feat_cfg: FeatureConfig) -> NPFloatArray:
     return multiscale_features(image, feat_cfg)
 
 
 @pytest.fixture(scope="module")
-def ground_truth() -> Arr:
+def ground_truth() -> NPUIntArray:
     return load_labels("tests/data/0_ground_truth.tif")

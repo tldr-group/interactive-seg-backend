@@ -3,28 +3,29 @@ from pickle import load, dump
 from skops.io import load as skload, dump as skdump
 
 
+from abc import ABC
 from typing import Any
 
-from interactive_seg_backend.configs import Arr, UInt8Arr, Arrlike
+from interactive_seg_backend.configs import NPFloatArray, NPUIntArray
 
 
-class Classifier(object):
+class Classifier(ABC):
     def __init__(self, extra_args: dict[str, Any]) -> None:
-        self.model: object | None = None
+        pass
 
     def fit(
         self,
-        train_data: Arrlike,
-        target_data: UInt8Arr,
-        sample_weights: Arr | None = None,
+        train_data: NPFloatArray,
+        target_data: NPUIntArray,
+        sample_weights: NPFloatArray | None = None,
     ):
-        return self
+        raise NotImplementedError
 
-    def predict_proba(self, features_flat: Arrlike) -> Arr:
+    def predict_proba(self, features_flat: NPFloatArray) -> NPFloatArray:
         raise NotImplementedError
 
     # Assuming all GPU models return their probs as numpy arr this frame should work
-    def predict(self, features: Arrlike) -> UInt8Arr:
+    def predict(self, features: NPFloatArray) -> NPUIntArray:
         h, w, c = features.shape
         features_flat = features.reshape((h * w, c))
         probs = self.predict_proba(features_flat)
@@ -39,8 +40,13 @@ class Classifier(object):
             skdump(self, out_path)
 
     def __repr__(self) -> str:
-        model_name = "None" if self.model is None else self.model.__class__.__name__
-        return f"{model_name}"
+        name: str
+        model = getattr(self, "model", None)
+        if model is not None:
+            name = model.__class__.__name__
+        else:
+            name = "None"
+        return f"{name}"
 
 
 def load_classifier(path: str) -> Classifier:

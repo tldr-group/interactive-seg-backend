@@ -2,7 +2,7 @@ import pytest
 
 from os import makedirs
 
-from interactive_seg_backend.configs import Arr, UInt8Arr, TrainingConfig, FeatureConfig
+from interactive_seg_backend.configs import Arr, NPUIntArray, TrainingConfig, FeatureConfig
 from test_core import e2e_get_miou
 
 feat_cfg = FeatureConfig(add_weka_sigma_multiplier=False)
@@ -10,7 +10,7 @@ feat_cfg = FeatureConfig(add_weka_sigma_multiplier=False)
 makedirs("tests/out", exist_ok=True)
 
 
-def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
+def test_linear(feature_stack: Arr, labels: NPUIntArray, ground_truth: NPUIntArray):
     tc = TrainingConfig(feature_config=feat_cfg, classifier="linear_regression")
     e2e_get_miou(
         feature_stack,
@@ -24,7 +24,7 @@ def test_linear(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     )
 
 
-def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
+def test_logistic(feature_stack: Arr, labels: NPUIntArray, ground_truth: NPUIntArray):
     tc = TrainingConfig(feature_config=feat_cfg, classifier="logistic_regression", classifier_params={"max_iter": 1000})
     e2e_get_miou(
         feature_stack,
@@ -38,7 +38,7 @@ def test_logistic(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
     )
 
 
-def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
+def test_xgb_cpu(feature_stack: Arr, labels: NPUIntArray, ground_truth: NPUIntArray):
     tc = TrainingConfig(feature_config=feat_cfg, classifier="xgb")
     e2e_get_miou(
         feature_stack,
@@ -55,7 +55,7 @@ def test_xgb_cpu(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
 MAX_ITERS = 3000
 
 
-def test_mlp(feature_stack: Arr, labels: UInt8Arr, ground_truth: UInt8Arr):
+def test_mlp(feature_stack: Arr, labels: NPUIntArray, ground_truth: NPUIntArray):
     tc = TrainingConfig(
         feature_config=feat_cfg,
         classifier="mlp",

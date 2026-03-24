@@ -9,12 +9,16 @@ To install:
 ```bash
 git clone https://github.com/tldr-group/interactive-seg-backend
 cd interactive-seg-backend
-pip install .
-# requires some extra build steps
-pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
+pip install . '.[cpu]'
 ```
 
 ### Pip:
+
+For the CPU-only version of the package (lighter), install with:
+```bash
+pip install '.[cpu]'
+```
+Note: you *must* do this to use xgboost classifiers.
 
 For GPU-enabled featurising (recommended), install with:
 
@@ -25,13 +29,7 @@ pip install '.[gpu]'
 For development (linters, tests), install with
 
 ```bash
-pip install -e '.[lint,test]'
-```
-
-To get all the optional dependencies at once:
-
-```bash
-pip install '.[all]'
+pip install -e '.[dev]'
 ```
 
 ### UV:
@@ -41,15 +39,15 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # restart your shell
 ```
 
+CPU-only:
 ```bash
-uv sync --extra gpu
-uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
+uv sync --extra cpu
 ```
 
 ```bash
-uv sync --all-extras
-uv pip install --no-build-isolation "pydensecrf @ git+https://github.com/lucasb-eyer/pydensecrf.git"
+uv sync --extra gpu
 ```
+
 
 ## Benchmark
 
@@ -60,10 +58,11 @@ python -m cProfile -s tottime interactive_seg_backend/features/multiscale_classi
 
 ## Tests
 
-Requires the pytest package (`pip install '.[test]'`)
+Requires the pytest package (`pip install '.[dev]'`)
 
 ```bash
 mkdir tests/data
+# grab the reference feature stack:
 curl -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
 pytest -s
 ```
@@ -72,14 +71,14 @@ pytest -s
 
 ```bash
 pip uninstall interactive_seg_backend -y
-pip install -e . --no-cache-dir
+pip install -e . '.[cpu, dev]' --no-cache-dir
 ```
 
 If offline
 
 ```bash
 pip uninstall interactive_seg_backend -y
-pip install . --no-cache-dir --no-index
+pip install . '.[cpu, dev]' --no-cache-dir --no-index
 ```
 
 ## TODO:

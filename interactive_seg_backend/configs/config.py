@@ -5,6 +5,7 @@ from json import load
 from typing import Any, Literal, get_args
 
 from interactive_seg_backend.configs.types import (
+    CastTypes,
     PossibleFeatures,
     ClassifierNames,
     Preprocessing,
@@ -43,7 +44,7 @@ class FeatureConfig(BaseModel):
     name: str = "default"
     desc: str = "weka-style features"
 
-    cast_to: Literal["f16", "f32", "f64"] = "f16"
+    cast_to: CastTypes = "f16"
 
     # weka has a 0.4 * multiplier before its $sigma for the gaussian blurs
     add_weka_sigma_multiplier: bool = True

@@ -2,7 +2,7 @@ import pytest
 from tifffile import imread
 import numpy as np
 
-from interactive_seg_backend.configs import Arr, UInt8Arr, FeatureConfig, TrainingConfig
+from interactive_seg_backend.configs import Arr, NPUIntArray, FeatureConfig, TrainingConfig
 from interactive_seg_backend.features import (
     multiscale_features,
     TORCH_AVAILABLE,
@@ -61,7 +61,7 @@ def test_gpu_featurise() -> None:
 
 
 @pytest.mark.skipif(not TORCH_AVAILABLE, reason="requires torch install")
-def test_gpu_e2e(image: Arr, labels: UInt8Arr, train_cfg: TrainingConfig, ground_truth: UInt8Arr) -> None:
+def test_gpu_e2e(image: Arr, labels: NPUIntArray, train_cfg: TrainingConfig, ground_truth: NPUIntArray) -> None:
     img_tensor = prepare_for_gpu(image)
     feats = multiscale_features_gpu(img_tensor, feat_cfg)
     e2e_get_miou(feats, labels, train_cfg, ground_truth, fname="tests/out/0_seg_gpu.tif")

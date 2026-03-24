@@ -1,7 +1,7 @@
 import pytest
 from tifffile import imwrite
 
-from interactive_seg_backend.configs import Arr, UInt8Arr, FeatureConfig, TrainingConfig
+from interactive_seg_backend.configs import Arr, NPUIntArray, FeatureConfig, TrainingConfig
 from interactive_seg_backend.file_handling import (
     load_image,
     load_labels,
@@ -64,8 +64,8 @@ def test_denoise(save: bool = True) -> None:
 
 def test_modal(
     feature_stack: Arr,
-    labels: UInt8Arr,
-    ground_truth: UInt8Arr,
+    labels: NPUIntArray,
+    ground_truth: NPUIntArray,
     out_fname: str = "tests/out/0_seg.tif",
 ):
     # we are modal filtering a seg with small tertiary phase -> mIoU should decrease
