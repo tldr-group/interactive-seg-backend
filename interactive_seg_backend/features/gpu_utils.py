@@ -3,6 +3,7 @@ import numpy as np
 from typing import cast, TYPE_CHECKING, TypeGuard
 
 from interactive_seg_backend.configs.types import Arrlike, AnyArr, CastTypes
+from interactive_seg_backend.utils import logger
 
 try:
     import torch
@@ -11,10 +12,21 @@ try:
 except ImportError:
     print("GPU dependencies not installed!")
     torch_imported = False
+
+try:
+    import cupy as cp
+
+    cupy_imported = True
+except ImportError:
+    print("GPU dependencies not installed!")
+    cupy_imported = False
+
+CUPY_AVAILABLE = cupy_imported
 TORCH_AVAILABLE = torch_imported
 
 if TYPE_CHECKING:
     import torch
+    import cupy as cp
 
 
 def get_dtype(dtype: CastTypes) -> "torch.dtype":
@@ -39,6 +51,15 @@ def prepare_for_gpu(arr: np.ndarray, device: str = "cuda:0", dtype: "torch.dtype
         arr = np.expand_dims(arr, (0))  # (C, H, W) -> (1, 1, H, W)
     tensor = torch.tensor(arr, device=device, dtype=dtype)
     return tensor
+
+
+def optionally_pass_to_cupy(arr: np.ndarray) -> "cp.ndarray | np.ndarray":
+    if CUPY_AVAILABLE:
+        assert cp is not None
+        return cp.asarray(arr)
+    else:
+        logger.warning("CuPy not available, falling back to NumPy array.")
+        return arr
 
 
 def check_if_tensor(arr: AnyArr) -> TypeGuard["torch.Tensor"]:
