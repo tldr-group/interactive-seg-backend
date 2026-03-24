@@ -1,9 +1,9 @@
 from interactive_seg_backend.core import featurise_, train_and_apply_
 from interactive_seg_backend.features import concat_feats
 from interactive_seg_backend.configs import (
-    Arr,
     AnyArr,
-    UInt8Arr,
+    NPFloatArray,
+    NPUIntArray,
     TrainingConfig,
 )
 
@@ -13,17 +13,15 @@ AutocontextType = Literal["autocontext_original", "autocontext_ilastik"]
 
 
 def autocontext_features(
-    image: Arr,
-    labels: UInt8Arr,
+    image: NPFloatArray,
+    labels: NPUIntArray,
     train_cfg: TrainingConfig,
-    original_feats: Arr | None = None,
-    original_probs: Arr | None = None,
+    original_feats: NPFloatArray | None = None,
+    original_probs: NPFloatArray | None = None,
     which: AutocontextType = "autocontext_ilastik",
 ) -> AnyArr:
     if original_feats is None:
-        feats = featurise_(
-            image, train_cfg.feature_config, train_cfg.preprocessing, train_cfg.use_gpu
-        )
+        feats = featurise_(image, train_cfg.feature_config, train_cfg.preprocessing, train_cfg.use_gpu)
     else:
         feats = original_feats
 
@@ -35,7 +33,5 @@ def autocontext_features(
     if which == "autocontext_original":
         return concat_feats(feats, probs)
     else:
-        prob_feats = featurise_(
-            probs, train_cfg.feature_config, train_cfg.preprocessing, train_cfg.use_gpu
-        )
+        prob_feats = featurise_(probs, train_cfg.feature_config, train_cfg.preprocessing, train_cfg.use_gpu)
         return concat_feats(feats, prob_feats)

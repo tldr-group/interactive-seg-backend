@@ -15,7 +15,8 @@ from interactive_seg_backend.features import (
 from interactive_seg_backend.configs.types import (
     AnyArr,
     Arr,
-    UInt8Arr,
+    NPFloatArray,
+    NPUIntArray,
     ClassifierNames,
 )
 from interactive_seg_backend.classifiers import Classifier, RandomForest, Logistic, Linear, XGBCPU, XGBGPU, MLP
@@ -43,18 +44,20 @@ def featurise_(
     return feats
 
 
-def get_training_data(feature_stacks: list[Arr] | list[str], labels: list[UInt8Arr]) -> tuple[Arr, UInt8Arr]:
+def get_training_data(
+    feature_stacks: list[NPFloatArray] | list[str], labels: list[NPUIntArray]
+) -> tuple[NPFloatArray, NPUIntArray]:
     # support for handling stacks from filepaths s.t only one stack in memory at once
     assert len(feature_stacks) > 0
     assert len(feature_stacks) == len(labels)
 
-    def _get_stack(stack: Arr | str) -> Arr:
+    def _get_stack(stack: NPFloatArray | str) -> NPFloatArray:
         # _stack: Arrlike
         if type(stack) is str:
             _stack = load_featurestack(stack)
         else:
             _stack = stack
-        _stack = cast(Arr, _stack)
+        _stack = cast(NPFloatArray, _stack)
         return _stack
 
     init_stack: Arr
@@ -66,11 +69,14 @@ def get_training_data(feature_stacks: list[Arr] | list[str], labels: list[UInt8A
         fit, target = get_labelled_training_data_from_stack(_stack, label)
         all_fit_data = np.concatenate((all_fit_data, fit), axis=0)
         all_target_data = np.concatenate((all_target_data, target), axis=0)
-    all_fit_data = cast(Arr, all_fit_data)
+    all_fit_data = cast(NPFloatArray, all_fit_data)
+    all_target_data = cast(NPUIntArray, all_target_data)
     return all_fit_data, all_target_data
 
 
-def get_labelled_training_data_from_stack(feature_stack: Arr, labels: UInt8Arr) -> tuple[Arr, UInt8Arr]:
+def get_labelled_training_data_from_stack(
+    feature_stack: NPFloatArray, labels: NPUIntArray
+) -> tuple[NPFloatArray, NPUIntArray]:
     h, w, n_feats = feature_stack.shape
     flat_labels = labels.reshape((h * w))
     flat_features = feature_stack.reshape((h * w, n_feats))
@@ -84,8 +90,8 @@ def get_labelled_training_data_from_stack(feature_stack: Arr, labels: UInt8Arr) 
 
 
 def shuffle_sample_training_data(
-    fit: Arr, target: UInt8Arr, shuffle: bool = True, sample_n: int = -1
-) -> tuple[Arr, UInt8Arr]:
+    fit: NPFloatArray, target: NPUIntArray, shuffle: bool = True, sample_n: int = -1
+) -> tuple[NPFloatArray, NPUIntArray]:
     n_samples = target.shape[0]
     all_inds = np.arange(0, n_samples, 1)
     if shuffle:
@@ -117,7 +123,7 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: b
         raise Exception("Not implemented!")
 
 
-def train(model: Classifier, fit: Arr, target: UInt8Arr, sample_weight: Arr | None) -> Classifier:
+def train(model: Classifier, fit: NPFloatArray, target: NPUIntArray, sample_weight: NPFloatArray | None) -> Classifier:
     weights_str = "" if sample_weight is None else f"weights: {sample_weight.shape}"
     logger.info(f"Training {model}: {fit.shape} -> ({target.shape}) {weights_str}")
     if sample_weight is None:
@@ -130,10 +136,10 @@ def train(model: Classifier, fit: Arr, target: UInt8Arr, sample_weight: Arr | No
 
 def apply_(
     model: Classifier,
-    features: Arr,
+    features: NPFloatArray,
     h: int | None = None,
     w: int | None = None,
-) -> tuple[UInt8Arr, Arr]:
+) -> tuple[NPUIntArray, NPFloatArray]:
     logger.info(f"Applying {model} to {features.shape} features")
     is_2D = len(features.shape) == 3
     if is_2D:
@@ -153,7 +159,9 @@ def apply_(
     return seg, probs_2D
 
 
-def train_and_apply_(features: Arr, labels: UInt8Arr, train_cfg: TrainingConfig) -> tuple[UInt8Arr, Arr, Classifier]:
+def train_and_apply_(
+    features: NPFloatArray, labels: NPUIntArray, train_cfg: TrainingConfig
+) -> tuple[NPUIntArray, NPFloatArray, Classifier]:
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)

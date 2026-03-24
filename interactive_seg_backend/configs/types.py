@@ -16,9 +16,8 @@ if TYPE_CHECKING:
 
 NPFloatArray: TypeAlias = npt.NDArray[np.floating]
 NPIntArray: TypeAlias = npt.NDArray[np.integer]
-NPUIntArray: TypeAlias = npt.NDArray[np.uint8] | npt.NDArray[np.uint16]
+NPUIntArray: TypeAlias = npt.NDArray[np.uint8]
 
-UInt8Arr: TypeAlias = npt.NDArray[np.uint8]
 Arr: TypeAlias = NPFloatArray | NPIntArray
 
 AnyArr: TypeAlias = "Arr | Tensor"
@@ -29,7 +28,7 @@ Arrlike = TypeVar(
     AnyArr,
 )
 
-UInt8Arrlike = TypeVar("UInt8Arrlike", npt.NDArray[np.uint8], "Tensor")
+NPUIntArraylike = TypeVar("NPUIntArraylike", npt.NDArray[np.uint8], "Tensor")
 
 PossibleFeatures = Literal[
     "gaussian_blur",

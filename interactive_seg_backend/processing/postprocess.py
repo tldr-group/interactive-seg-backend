@@ -1,7 +1,7 @@
 from skimage.filters.rank import modal
 from skimage.morphology import disk
 
-from interactive_seg_backend.configs import UInt8Arr
+from interactive_seg_backend.configs import NPUIntArray
 from interactive_seg_backend.configs.types import (
     Postprocessing,
 )
@@ -9,18 +9,18 @@ from interactive_seg_backend.configs.types import (
 from typing import cast
 
 
-def make_footprint(k: int) -> UInt8Arr:
+def make_footprint(k: int) -> NPUIntArray:
     out = disk(2 * k + 1)
-    return cast(UInt8Arr, out)
+    return cast(NPUIntArray, out)
 
 
-def modal_filter(seg_arr: UInt8Arr, k: int = 2) -> UInt8Arr:
+def modal_filter(seg_arr: NPUIntArray, k: int = 2) -> NPUIntArray:
     footprint = make_footprint(k)
     out = modal(seg_arr, footprint)
-    return cast(UInt8Arr, out)
+    return cast(NPUIntArray, out)
 
 
-def postprocess(seg_arr: UInt8Arr, postprocessing_operations: tuple[Postprocessing]) -> UInt8Arr:
+def postprocess(seg_arr: NPUIntArray, postprocessing_operations: tuple[Postprocessing]) -> NPUIntArray:
     if "modal_filter" in postprocessing_operations:
         seg_arr = modal_filter(seg_arr)
     return seg_arr
