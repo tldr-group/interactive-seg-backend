@@ -10,7 +10,7 @@ try:
 
     torch_imported = True
 except ImportError:
-    print("GPU dependencies not installed!")
+    logger.warning("torch not installed, GPU featurisation unavailable!")
     torch_imported = False
 
 try:
@@ -18,7 +18,7 @@ try:
 
     cupy_imported = True
 except ImportError:
-    print("GPU dependencies not installed!")
+    logger.warning("CuPY not installed, GPU fit/apply unavailable!")
     cupy_imported = False
 
 CUPY_AVAILABLE = cupy_imported

@@ -109,7 +109,7 @@ class ColorFormatter(logging.Formatter):
         record.levelname = add_color(self.CHARS[record.levelno], color)
 
         record.asctime_coloured = add_color(timestamp, self.TIME_COLOR)
-        record.lineno_coloured = add_color(str(record.lineno), self.TIME_COLOR)
+        record.lineno_coloured = add_color(f"{record.lineno:4d}", self.TIME_COLOR)
 
         return super().format(record)
 
