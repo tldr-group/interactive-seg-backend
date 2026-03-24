@@ -33,7 +33,7 @@ class ExpertSegClassifier(XGBCPU):
         self.n_epochs = n_epochs
         self.lambd_vf = lambd_vf
         self.lambd_conn = lambd_conn
-
+        # we need to do this manually
         extra_args["objective"] = "multi:softprob"
 
         self.params = extra_args
@@ -51,6 +51,19 @@ class ExpertSegClassifier(XGBCPU):
         target_data: NPUIntArray,
         sample_weights: NPFloatArray | None = None,
     ):
+        """Fit XGBoost model to labels w.r.t custom losses defined in `ClassInfo`s of `TrainingConfig`. Currently supports volume fraction and connectivity losses,
+        which can be enabled by setting `desired_volume_fraction` and `connectivity_target` fields of `ClassInfo`s respectively.
+
+        Args:
+            train_data (NPFloatArray): (h,w,c) array of features for each pixel in the image. This is different to the usual (n_samples, n_features) shape
+                expected by sklearn-like APIs, as we need to be able to calculate global losses across the whole image.
+            target_data (NPUIntArray): (h,w) array of integer labels for each pixel in the image. Again different to the usual (n_samples,) shape expected
+                by sklearn-like APIs.
+            sample_weights (NPFloatArray | None, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         ih, iw, c = train_data.shape
         lh, lw = target_data.shape
         assert (ih, iw) == (lh, lw), "Features and labels must be the same shape (i.e full image size)"
@@ -62,7 +75,7 @@ class ExpertSegClassifier(XGBCPU):
         labels = target_data[label_mask[0]]
 
         labels_onehot = OneHotEncoder(sparse_output=False).fit_transform(np.expand_dims(labels, -1))
-
+        # Booster API expects DMatrices
         full_img_dmat = DMatrix(data=train_data)
         train_dmat = DMatrix(data=train_data[label_mask[0], :], label=labels - 1)
 
@@ -75,10 +88,10 @@ class ExpertSegClassifier(XGBCPU):
         for i in range(self.n_epochs):
             full_img_pred = model.predict(full_img_dmat)
             train_pred = full_img_pred[label_mask[0]]
-
+            # default loss
             g_softmax, h_softmax = softmax_obj(train_pred, labels_onehot)
             g, h = g_softmax, h_softmax
-
+            # apply custom losses if enabled
             if self.do_vf_loss:
                 _, g_vf_full = volume_fraction_obj(full_img_pred, self.lambd_vf, targ_vfs)
                 g_vf = g_vf_full[label_mask[0]]
@@ -118,18 +131,17 @@ def volume_fraction_obj(
     whole_img_pred: np.ndarray, lambd: float, target_vf_distr: np.ndarray
 ) -> tuple[float, NPFloatArray]:
     n_px, n_classes = whole_img_pred.shape
-
+    # (n_px, n_classes) binary segs which we can mean over to get predicted vfs
     pred_onehot = np.eye(n_classes)[np.argmax(whole_img_pred, axis=1)]
-
-    valid_vf_mask = np.where(target_vf_distr >= 0, 1, 0)
     pred_vf_distr = np.mean(pred_onehot, axis=0)
-
+    # mask out classes with no target vf (i.e. where target_vf_distr is -1)
+    valid_vf_mask = np.where(target_vf_distr >= 0, 1, 0)
     pred_vf_distr *= valid_vf_mask
     target_vf_distr *= valid_vf_mask
 
-    loss = float(lambd * np.linalg.norm(pred_vf_distr - target_vf_distr) ** 2)  # for the whole image
+    loss = float(lambd * np.linalg.norm(pred_vf_distr - target_vf_distr) ** 2)  # global loss for the whole image
+    # *global* difference in vf distribution broadcast to per pixel *class-wise* gradients
     grad_row = 2 * lambd * (pred_vf_distr - target_vf_distr)
-
     grad = np.tile(grad_row, (n_px, 1))
     grad = cast(NPFloatArray, grad)
     return loss, grad
