@@ -18,8 +18,6 @@ if TORCH_AVAILABLE:
     import torch
 
 
-from typing import cast
-
 # from visualise import plot
 # TODO: rewrite all these to just be normal functions + pytest fixtures
 
@@ -79,7 +77,6 @@ class TestFeatureCorrectness:
         should be unity as well.
         """
         filtered = ft.singlescale_mean(CIRCLE_BYTE, FOOTPRINT)
-        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
 
     def test_max(self) -> None:
@@ -89,7 +86,6 @@ class TestFeatureCorrectness:
         corners (as they are more than $SIGMA pixels away from disk).
         """
         filtered = ft.singlescale_maximum(CIRCLE_BYTE, FOOTPRINT)
-        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
         top_left_val = filtered[0, 0]
         assert isclose(top_left_val, 0, abs_tol=1e-6)
@@ -101,7 +97,6 @@ class TestFeatureCorrectness:
         centre - so centre value AND sum should equal 255.
         """
         filtered = ft.singlescale_minimum(CIRCLE_BYTE, FOOTPRINT)
-        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
         _test_sum(filtered, 255)
 
@@ -112,7 +107,6 @@ class TestFeatureCorrectness:
         Again centre should be 255 and egdes 0.
         """
         filtered = ft.singlescale_median(CIRCLE_BYTE, FOOTPRINT)
-        filtered = cast(npt.NDArray[np.uint8], filtered)
         _test_centre_val(filtered, 255)
         top_left_val = filtered[0, 0]
         assert isclose(top_left_val, 0, abs_tol=1e-6)
