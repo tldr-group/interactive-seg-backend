@@ -1,12 +1,16 @@
 import numpy as np
 from scipy.ndimage import rotate
 from skimage.filters import gaussian
+from PIL import Image
+from PIL.ImageColor import getcolor
+from skimage.color import label2rgb
 
 import logging
 from sys import stdout
 from time import strftime, localtime
 
 
+from typing import cast
 from interactive_seg_backend.configs import NPFloatArray, NPIntArray
 
 
@@ -75,6 +79,33 @@ def gaussian_ts(
     )
 
 
+# ========== PLOTTING ==========
+PALETTE_HEX = [
+    "#000000",
+    "#785EF0",
+    "#DC267F",
+    "#FE6100",
+    "#FFB000",
+    "#EBC3DB",
+    "#582707",
+    "#648FFF",
+]
+PALETTE_RGB = [[v for v in cast(tuple[int, ...], getcolor(c, "RGB"))] for c in PALETTE_HEX]
+PALETTE_RGB_NORM = [[v / 255.0 for v in cast(tuple[int, ...], getcolor(c, "RGB"))] for c in PALETTE_HEX]
+
+
+def apply_labels_as_overlay(
+    labels: np.ndarray, img: Image.Image, colors: list, alpha: float = 1.0, bg_label: int = 0
+) -> Image.Image:
+    labels_unsqueezed = np.expand_dims(labels, -1)
+
+    overlay = label2rgb(labels, colors=colors, kind="overlay", bg_label=bg_label, image_alpha=1, alpha=alpha)
+    out = np.where(labels_unsqueezed, overlay * 255, np.array(img)).astype(np.uint8)
+    img_with_labels = Image.fromarray(out)
+    return img_with_labels
+
+
+# ========== LOGGING ==========
 def add_color(string: str, color_code: str) -> str:
     RESET_CODE = "\033[0m"
     return f"{color_code}{string}{RESET_CODE}"

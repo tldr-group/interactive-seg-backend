@@ -209,11 +209,11 @@ def _per_class_connectivity_obj(
     if is_uniform:  # early return if pred all 0s or all 1s (i.e defer to softmax)
         return 0.0, np.zeros_like(binary_pred)
 
-    labels, n_components = label(binary_pred, return_num=True)
+    labels, n_components = label(binary_pred, return_num=True)  # type: ignore
 
     if targ == "minimise":
         loss = lambd * (1 / n_components)
-        distance_map: NPFloatArray = distance_transform_edt(binary_pred, return_indices=False)
+        distance_map: NPFloatArray = distance_transform_edt(binary_pred, return_indices=False)  # type: ignore
         distance_map_inv = np.divide(1, distance_map, out=np.zeros(distance_map.shape), where=distance_map != 0)
         grad_2D = lambd * distance_map_inv * loss
         return loss, grad_2D
@@ -228,7 +228,7 @@ def _per_class_connectivity_obj(
         gradient_area = lambd * area_map * loss
 
         binary_inv = ~binary_pred
-        distance_map: NPFloatArray = distance_transform_edt(binary_inv, return_indices=False)
+        distance_map: NPFloatArray = distance_transform_edt(binary_inv, return_indices=False)  # type: ignore
         distance_map_inv = np.divide(1, distance_map, out=np.zeros(distance_map.shape), where=distance_map != 0)
         grad_distance = lambd * distance_map_inv * loss
 
