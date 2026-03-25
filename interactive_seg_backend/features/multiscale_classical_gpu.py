@@ -12,6 +12,7 @@ from interactive_seg_backend.features.gpu_utils import (
     unpack_2d_ks,
     get_gaussian_kernel2d,
     get_binary_kernel2d,
+    TORCH_AVAILABLE,
 )
 
 
@@ -19,11 +20,8 @@ try:
     import torch
     from torch.nn.functional import conv2d, max_pool2d, avg_pool2d, pad
 
-    torch_imported = True
 except ImportError:
-    logger.warning("Torch unavailable!")
-    torch_imported = False
-TORCH_AVAILABLE = torch_imported
+    pass
 
 if TYPE_CHECKING:
     import torch

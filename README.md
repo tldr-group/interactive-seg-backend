@@ -86,6 +86,7 @@ pip install . '.[cpu, dev]' --no-cache-dir --no-index
 - improvements:
   - rules: fixed vf, rules (connectivity),
   - SAM post-proc ?
+- nits: fix classifier typing, fix/ standarize relative imports in initss
 - pass down things you care about i.e sample weights into train / train and apply
 - docstrings
 - example notebooks (basics + interactive widget?):

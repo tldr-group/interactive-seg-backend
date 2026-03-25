@@ -2,7 +2,7 @@ from numpy import log2, logspace
 from pydantic import BaseModel
 from dataclasses import fields, Field, field
 from json import load
-from typing import Any, Literal, get_args
+from typing import Any, get_args
 
 from interactive_seg_backend.configs.types import (
     CastTypes,
@@ -10,6 +10,7 @@ from interactive_seg_backend.configs.types import (
     ClassifierNames,
     Preprocessing,
     HITLStrategy,
+    ConnectivityObj,
 )
 from typing import cast
 
@@ -215,7 +216,7 @@ class ClassInfo(BaseModel):
     max_size_px: int | None = None
 
     desired_volume_fraction: float | None = None
-    connectivity_target: Literal["minimise", "maximise", None] = None
+    connectivity_target: ConnectivityObj = None
 
     def __repr__(self) -> str:
         return self.model_dump_json(ensure_ascii=True, indent=2)

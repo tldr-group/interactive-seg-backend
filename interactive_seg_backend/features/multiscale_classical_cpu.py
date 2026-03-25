@@ -43,7 +43,7 @@ from typing import Literal, cast
 BACKEND: Literal["loky", "threading"] = "threading"
 N_ALLOWED_CPUS = cpu_count() - 2
 
-print(f"N CPUS: {N_ALLOWED_CPUS}")
+logger.info(f"N CPUS: {N_ALLOWED_CPUS}")
 
 
 # %% ===================================HELPER FUNCTIONS===================================
