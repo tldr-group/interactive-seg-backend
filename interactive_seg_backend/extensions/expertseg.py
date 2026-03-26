@@ -59,9 +59,9 @@ class ExpertSegClassifier(XGBCPU):
         which can be enabled by setting `desired_volume_fraction` and `connectivity_target` fields of `ClassInfo`s respectively.
 
         Args:
-            train_data (NPFloatArray): (h,w,c) array of features for each pixel in the image. This is different to the usual (n_samples, n_features) shape
+            train_data (NPFloatArray): (H,W,C) array of features for each pixel in the image. This is different to the usual (n_samples, n_features) shape
                 expected by sklearn-like APIs, as we need to be able to calculate global losses across the whole image.
-            target_data (NPUIntArray): (h,w) array of integer labels for each pixel in the image. Again different to the usual (n_samples,) shape expected
+            target_data (NPUIntArray): (H,W) array of integer labels for each pixel in the image. Again different to the usual (n_samples,) shape expected
                 by sklearn-like APIs.
             sample_weights (NPFloatArray | None, optional): _description_. Defaults to None.
 

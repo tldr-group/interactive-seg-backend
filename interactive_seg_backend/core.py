@@ -32,6 +32,7 @@ def featurise_(
     preprocessing: tuple[Preprocessing, ...] | None = None,
     use_gpu: bool = False,
 ) -> AnyArr:
+    """Helper so we can use this in autocontext extenstion."""
     if preprocessing is not None:
         image = preprocess(image, preprocessing)
 
@@ -47,6 +48,17 @@ def featurise_(
 def get_training_data(
     feature_stacks: list[NPFloatArray] | list[str], labels: list[NPUIntArray]
 ) -> tuple[NPFloatArray, NPUIntArray]:
+    """For list of feature arrays OR cache paths, load sequentially, mask based on labelled
+    pixels and concatenate. $feature_stacks and $labels must be of the same length.
+
+    Args:
+        feature_stacks (list[NPFloatArray] | list[str]): list of (H,W,C) features arrays OR paths to cached arrays.
+        labels (list[NPUIntArray]): list of (H,W) label arrays, where 0 indicates unlabelled pixels.
+
+    Returns:
+        tuple[NPFloatArray, NPUIntArray]: (N_labelled,C) array of features and (N_labelled,) array of labels,
+            where N_labelled is the total number of labelled pixels across ALL stacks.
+    """
     # support for handling stacks from filepaths s.t only one stack in memory at once
     assert len(feature_stacks) > 0
     assert len(feature_stacks) == len(labels)
@@ -77,6 +89,7 @@ def get_training_data(
 def get_labelled_training_data_from_stack(
     feature_stack: NPFloatArray, labels: NPUIntArray
 ) -> tuple[NPFloatArray, NPUIntArray]:
+    """Flatten stacks & labels, mask based on *non-zero* label values and return."""
     h, w, n_feats = feature_stack.shape
     flat_labels = labels.reshape((h * w))
     flat_features = feature_stack.reshape((h * w, n_feats))
@@ -92,6 +105,7 @@ def get_labelled_training_data_from_stack(
 def shuffle_sample_training_data(
     fit: NPFloatArray, target: NPUIntArray, shuffle: bool = True, sample_n: int = -1
 ) -> tuple[NPFloatArray, NPUIntArray]:
+    """Shuffle and sample $fit and $target based on shared random inds. No sampling if sample_n < 0."""
     n_samples = target.shape[0]
     all_inds = np.arange(0, n_samples, 1)
     if shuffle:
@@ -104,6 +118,8 @@ def shuffle_sample_training_data(
 
 
 def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: bool = False) -> Classifier:
+    """Factory function for getting model instance from $model_type, supplied with $extra_args.
+    NB: consumer's responsibility to ensure $extra_args contains right keys for model type"""
     if model_type in ["random_forest", "logistic_regression"]:
         extra_args["n_jobs"] = N_ALLOWED_CPUS
 
