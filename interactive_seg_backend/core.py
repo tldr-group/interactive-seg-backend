@@ -140,6 +140,17 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: b
 
 
 def train(model: Classifier, fit: NPFloatArray, target: NPUIntArray, sample_weight: NPFloatArray | None) -> Classifier:
+    """Train $model to map from $fit features -> $target labels with option $sample_weight
+
+    Args:
+        model (Classifier): untrained Classifier (i.e from `get_model()`)
+        fit (NPFloatArray): (N_samples,C) array of features (i.e from `get_training_data()`)
+        target (NPUIntArray): (N_samples,) array of labels (i.e from `get_training_data()`)
+        sample_weight (NPFloatArray | None):  (N_samples,) optional sample weights
+
+    Returns:
+        Classifier: trained Classifier object
+    """
     weights_str = "" if sample_weight is None else f"weights: {sample_weight.shape}"
     logger.info(f"Training {model}: {fit.shape} -> ({target.shape}) {weights_str}")
     if sample_weight is None:

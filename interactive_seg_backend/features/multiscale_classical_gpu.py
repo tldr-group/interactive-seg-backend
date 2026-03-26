@@ -379,6 +379,28 @@ def multiscale_features_gpu(
     config: FeatureConfig,
     reshape_squeeze: bool = True,
 ) -> "torch.Tensor":
+    """Compute selected features (from $config) of $raw_img across different scales (sigmas) - dispatches each
+    channel of $raw_img to `multiscale_singlechannel()`.
+
+    NB: operates on all channels at once via grouped convs.
+
+    Concretely:
+    - if zero-scale features enabled, compute selected features (gaussian, sobel, hessian) on $raw_img with no blur
+    - for each scale/sigma (mapped across threads):
+      - gaussian blur $raw_img with that sigma
+      - compute selected features (any of gaussian, sobel, hessian, mean, median, min, max, laplacian, structure tensor eigvals)
+        on the blurred image
+    - compute 'scale-free' features (difference of gaussians, membrane projections, bilateral) as selected in $config
+    - stack , cast, and return
+
+    Args:
+        raw_img (torch.Tensor): (H,W,Ch) array to featurise. Can be uint8 or float: should be in [0, 255].
+        config (FeatureConfig): which features to compute and sigmas/scales to compute over
+        reshape_squeeze (bool, optional): return as (H,W,C) if true, (B,C,H,W) if false. Defaults to True.
+
+    Returns:
+        torch.Tensor: (H,W,C) pr (B,C,H,W) array of features.
+    """
     with torch.no_grad():
         logger.info(f"GPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
         dtype = get_dtype(config.cast_to)

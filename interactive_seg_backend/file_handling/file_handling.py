@@ -98,6 +98,7 @@ def rescale_RGB_to_contiguous_labels(
 
 
 def load_labels(path: str) -> npt.NDArray[np.uint8]:
+    """Return (H,W) array of uint8 labels, mapped from {v1, v2, ...} -> {0, 1, ...}. NB: assumes unlabelled = 0."""
     arr = read_file_get_arr(path).astype(np.uint8)
     is_RGB = len(arr.shape) == 3 and arr.shape[-1] == 3
     if is_RGB:
