@@ -20,18 +20,23 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
-          # Adjust if you use a different dependency file
-          cache-dependency-path: |
-            pyproject.toml
-            uv.lock
+          cache-dependency-path: pyproject.toml
+
+      - name: Cache test feature stack
+        uses: actions/cache@v4
+        with:
+          path: tests/data/feature-stack.tif
+          key: feature-stack-tif-v1
 
       - name: Install dependencies with extras [cpu,dev]
         run: uv sync --extra cpu --extra dev
 
       - name: Prepare test data
         run: |
-          mkdir -p tests/out
-          curl -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
+          mkdir -p tests/out tests/data
+          if [ ! -f tests/data/feature-stack.tif ]; then
+            curl -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
+          fi
 
       - name: Run tests
         run: uv run pytest -s
