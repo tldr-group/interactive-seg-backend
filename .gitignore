@@ -177,7 +177,6 @@ tests/out/*
 *.old
 apply/
 interactive_seg_backend/configs/examples/*
-uv.lock
 
 expertsegmentation
 trained_models
