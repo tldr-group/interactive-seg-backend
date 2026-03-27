@@ -26,6 +26,7 @@ from interactive_seg_backend.extensions.crf import (
     CRF_AVAILABLE,
 )
 from interactive_seg_backend.processing.postprocess import modal_filter
+from interactive_seg_backend.utils import logger
 
 
 FeatureFunction: TypeAlias = Callable[[Arrlike, FeatureConfig], Arrlike]
@@ -67,6 +68,7 @@ def featurise(
         else:
             custom_feats = fn(image, feature_cfg)
         feats = concat_feats(feats, custom_feats)
+    logger.info(f"Features out: {feats.shape}")
 
     if save_path != "":
         save_featurestack(feats, save_path, ".npy")

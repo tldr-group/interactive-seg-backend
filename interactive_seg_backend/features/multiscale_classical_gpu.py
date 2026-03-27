@@ -470,7 +470,6 @@ def multiscale_features_gpu(
         if reshape_squeeze:
             features_out = torch.squeeze(features_out, 0)
             features_out = torch.permute(features_out, (1, 2, 0))
-        logger.info(f"Features out: {features_out.shape}, {features_out.dtype}")
     return features_out
 
 

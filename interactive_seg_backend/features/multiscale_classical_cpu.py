@@ -492,7 +492,6 @@ def multiscale_features(
         slice_feats = multiscale_singlechannel(slice_arr, config, num_workers)
         out.append(slice_feats)
     stacked = np.concatenate(out, axis=-1)
-    logger.info(f"Features out: {stacked.shape}")
     return stacked
 
 
