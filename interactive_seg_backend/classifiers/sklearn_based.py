@@ -1,6 +1,8 @@
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import RidgeClassifier, LogisticRegression
 from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import scale, minmax_scale
+from numpy import nan_to_num
 
 from interactive_seg_backend.configs import NPFloatArray, NPUIntArray
 from .base import Classifier
@@ -8,39 +10,7 @@ from .base import Classifier
 from typing import Any
 
 
-class SklearnBasedClassifier(Classifier):
-    """Wrapper for sklearn-based classifiers. Should be used for any sklearn-based classifier that implements fit and predict_proba methods."""
-
-    def __init__(self, extra_args: dict[str, Any]) -> None:
-        # self.model: Any
-
-    def fit(
-        self,
-        train_data: NPFloatArray,
-        target_data: NPUIntArray,
-        sample_weights: NPFloatArray | None = None,
-    ):
-        """Generic fit for sklearn-API conforming models
-
-        Args:
-            train_data (NPFloatArray): (N_samples, C) array of training features.
-            target_data (NPUIntArray): (N_samples,) array of integer class labels for training.
-            sample_weights (NPFloatArray | None, optional): (N_samples,) array of optional sample weights. Defaults to None.
-
-        Raises:
-            NotImplementedError: _description_
-        """
-        self.model.fit(train_data, target_data, sample_weight=sample_weights)
-        return self
-
-    def predict_proba(self, features_flat: NPFloatArray) -> NPFloatArray:
-        return self.model.predict_proba(features_flat)
-
-    def predict(self, features: NPFloatArray):
-        return super().predict(features)
-
-
-class RandomForest(SklearnBasedClassifier):
+class RandomForest(Classifier):
     def __init__(self, extra_args: dict[str, Any]) -> None:
         self.model = RandomForestClassifier(**extra_args)
 
@@ -60,9 +30,28 @@ class RandomForest(SklearnBasedClassifier):
         return super().predict(features)
 
 
-class Logistic(SklearnBasedClassifier):
+def scale_no_nan(feats_flat: NPFloatArray) -> NPFloatArray:
+    return nan_to_num(minmax_scale(feats_flat), nan=0.0)
+
+
+# TODO: consider an @scaled decorator or mixin
+class Logistic(Classifier):
     def __init__(self, extra_args: dict[str, Any]) -> None:
         self.model = LogisticRegression(**extra_args)
+
+    def fit(
+        self,
+        train_data: NPFloatArray,
+        target_data: NPUIntArray,
+        sample_weights: NPFloatArray | None = None,
+    ):
+        train_data_scaled = scale_no_nan(train_data)
+        self.model.fit(train_data_scaled, target_data, sample_weight=sample_weights)
+        return self
+
+    def predict_proba(self, features_flat: NPFloatArray) -> NPFloatArray:
+        features_flat_scaled = scale_no_nan(features_flat)
+        return self.model.predict_proba(features_flat_scaled)
 
 
 class Linear(Classifier):
@@ -75,11 +64,13 @@ class Linear(Classifier):
         target_data: NPUIntArray,
         sample_weights: NPFloatArray | None = None,
     ):
-        self.model.fit(train_data, target_data, sample_weight=sample_weights)
+        train_data_scaled = scale_no_nan(train_data)
+        self.model.fit(train_data_scaled, target_data, sample_weight=sample_weights)
         return self
 
     def predict_proba(self, features_flat: NPFloatArray) -> NPFloatArray:
-        return self.model.decision_function(features_flat)
+        features_flat_scaled = scale_no_nan(features_flat)
+        return self.model.decision_function(features_flat_scaled)
 
 
 class MLP(RandomForest):
