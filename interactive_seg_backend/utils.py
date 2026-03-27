@@ -108,6 +108,10 @@ def apply_labels_as_overlay(
     return img_with_labels
 
 
+def recolor_labels(labels: np.ndarray, colors: list = PALETTE_RGB_NORM[1:], bg_label: int = 0) -> np.ndarray:
+    return label2rgb(labels, colors=colors, kind="overlay", bg_label=bg_label, image_alpha=1, alpha=1)
+
+
 # ========== LOGGING ==========
 def add_color(string: str, color_code: str) -> str:
     RESET_CODE = "\033[0m"
