@@ -26,13 +26,13 @@ For GPU-enabled featurising (recommended), install with:
 pip install '.[gpu]'
 ```
 
-For development (linters, tests), install with
+For development (linters, tests, notebooks), install with
 
 ```bash
-pip install -e '.[dev]'
+pip install -e '.[cpu,dev]'
 ```
 
-### UV:
+### uv (recommended):
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -80,19 +80,3 @@ If offline
 pip uninstall interactive_seg_backend -y
 pip install . '.[cpu, dev]' --no-cache-dir --no-index
 ```
-
-## TODO:
-
-- improvements:
-  - rules: fixed vf, rules (connectivity),
-  - SAM post-proc ?
-- nits: fix classifier typing, fix/ standarize relative imports in initss
-- pass down things you care about i.e sample weights into train / train and apply
-- docstrings
-- example notebooks (basics + interactive widget?):
-  - most basic example: image + load label file -> segment
-  - example using gpu
-  - example sawpping out classifier
-  - example using CRF (2 diff configs?) (comparison to w/out & maybe modal filter)
-  - example using autocontext (comparison to w/out)
-  - example adding vulture feats (don't add it as dep)
