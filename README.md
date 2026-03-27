@@ -45,7 +45,7 @@ uv sync --extra cpu
 ```
 
 ```bash
-uv sync --extra gpu
+uv sync --extra gpu --extra dev
 ```
 
 
@@ -61,22 +61,9 @@ python -m cProfile -s tottime interactive_seg_backend/features/multiscale_classi
 Requires the pytest package (`pip install '.[dev]'`)
 
 ```bash
-mkdir tests/data
+mkdir tests/out
 # grab the reference feature stack:
 curl -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
 pytest -s
 ```
 
-## Install locally (i.e for dev)
-
-```bash
-pip uninstall interactive_seg_backend -y
-pip install -e . '.[cpu, dev]' --no-cache-dir
-```
-
-If offline
-
-```bash
-pip uninstall interactive_seg_backend -y
-pip install . '.[cpu, dev]' --no-cache-dir --no-index
-```
