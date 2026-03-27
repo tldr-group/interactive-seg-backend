@@ -364,6 +364,25 @@ def multiscale_singlechannel(
     config: FeatureConfig,
     num_workers: int | None = None,
 ) -> NPFloatArray:
+    """Compute selected features (from $config) of $raw_img across different scales (sigmas).
+    Concretely:
+    - if zero-scale features enabled, compute selected features (gaussian, sobel, hessian) on $raw_img with no blur
+    - for each scale/sigma (mapped across threads):
+      - gaussian blur $raw_img with that sigma
+      - compute selected features (any of gaussian, sobel, hessian, mean, median, min, max, laplacian, structure tensor eigvals)
+        on the blurred image
+    - compute 'scale-free' features (difference of gaussians, membrane projections, bilateral) as selected in $config
+    - stack , cast, and return
+
+
+    Args:
+        raw_img (np.ndarray): (H,W) array to featureise. Can be uint8 or float: should be in [0, 255].
+        config (FeatureConfig): which features to compute and sigmas/scales to compute over
+        num_workers (int | None, optional): optional N workers/threads. Defaults to None.
+
+    Returns:
+        NPFloatArray: (H,W,C) array of features.
+    """
     byte_img = raw_img.astype(np.uint8)
     converted_img: NPFloatArray = np.ascontiguousarray(img_as_float32(raw_img))
     features: list[NPFloatArray | NPUIntArray]
@@ -423,6 +442,27 @@ def multiscale_features(
     config: FeatureConfig,
     num_workers: int | None = None,
 ) -> NPFloatArray:
+    """Compute selected features (from $config) of $raw_img across different scales (sigmas) - dispatches each
+    channel of $raw_img to `multiscale_singlechannel()`.
+
+    Concretely:
+    - if zero-scale features enabled, compute selected features (gaussian, sobel, hessian) on $raw_img with no blur
+    - for each scale/sigma (mapped across threads):
+      - gaussian blur $raw_img with that sigma
+      - compute selected features (any of gaussian, sobel, hessian, mean, median, min, max, laplacian, structure tensor eigvals)
+        on the blurred image
+    - compute 'scale-free' features (difference of gaussians, membrane projections, bilateral) as selected in $config
+    - stack , cast, and return
+
+
+    Args:
+        raw_img (np.ndarray): (H,W,Ch) array to featurise. Can be uint8 or float: should be in [0, 255].
+        config (FeatureConfig): which features to compute and sigmas/scales to compute over
+        num_workers (int | None, optional): optional N workers/threads. Defaults to None.
+
+    Returns:
+        NPFloatArray: (H,W,C) array of features.
+    """
     logger.info(f"CPU feats on {raw_img.shape} with `{config.name}`: {config.desc}")
     out: list[NPFloatArray] = []
     n_dims = len(raw_img.shape)
@@ -452,7 +492,6 @@ def multiscale_features(
         slice_feats = multiscale_singlechannel(slice_arr, config, num_workers)
         out.append(slice_feats)
     stacked = np.concatenate(out, axis=-1)
-    logger.info(f"Features out: {stacked.shape}")
     return stacked
 
 

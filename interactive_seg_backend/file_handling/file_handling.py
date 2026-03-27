@@ -60,7 +60,8 @@ def save_featurestack(arr: AnyArr, path: str, save_types: Literal[".npy", ".npz"
 def rescale_labels_to_greyscale(
     labels: npt.NDArray[np.uint8], offset: int = 1, n_classes: int | None = None
 ) -> npt.NDArray[np.uint8]:
-    # offset useful if seg 0 indexed. if remapping labels, set this to 0
+    """Map from (H,W) integer label array -> (H,W) uint8 array where classes evenly spaced across [0, 255].
+    NB: if remapping labels, set offset to 0 such that class 0 = unlabelled = 0 in output."""
     if n_classes is None:
         amax = int(np.max(labels.flatten()))
         n_classes = amax
@@ -75,7 +76,7 @@ N_VALS_CUTOFF = 20  # if they have more than 20 classes in arr, throw eror
 def rescale_unique_vals_to_contiguous_labels(
     arr: NPIntArray,
 ) -> npt.NDArray[np.uint8]:
-    # map from (2D) np array, go from unique values -> classes
+    """Map from (2D) np array, go from sorted unique values -> classes"""
     unique_vals = sorted(np.unique(arr))
     if len(unique_vals) > N_VALS_CUTOFF:
         raise Exception("Too many unique values in array! Are you sure this is an integer label array? ")
@@ -89,7 +90,7 @@ def rescale_unique_vals_to_contiguous_labels(
 def rescale_RGB_to_contiguous_labels(
     arr: npt.NDArray[np.uint8],
 ) -> npt.NDArray[np.uint8]:
-    # convert RGB arrs -> unique ints -> contiguous labels
+    """Convert RGB arrs -> unique ints -> contiguous labels"""
     new_arr = arr.astype(np.int64)
     R, G, B = new_arr[:, :, 0], new_arr[:, :, 1], new_arr[:, :, 2]
     unique_mapping = R + 255 * G + (255**2) * B
@@ -97,6 +98,7 @@ def rescale_RGB_to_contiguous_labels(
 
 
 def load_labels(path: str) -> npt.NDArray[np.uint8]:
+    """Return (H,W) array of uint8 labels, mapped from {v1, v2, ...} -> {0, 1, ...}. NB: assumes unlabelled = 0."""
     arr = read_file_get_arr(path).astype(np.uint8)
     is_RGB = len(arr.shape) == 3 and arr.shape[-1] == 3
     if is_RGB:

@@ -15,6 +15,7 @@ from interactive_seg_backend.configs import NPFloatArray, NPIntArray
 
 
 def class_avg_mious(prediction: NPIntArray, ground_truth: NPIntArray) -> list[float]:
+    """Per-class IoU. NB: only considers classes in $ground_truth."""
     ious: list[float] = []
     vals = np.unique(ground_truth)
     for v in vals:
@@ -28,6 +29,7 @@ def class_avg_mious(prediction: NPIntArray, ground_truth: NPIntArray) -> list[fl
 
 
 def class_avg_miou(prediction: NPIntArray, ground_truth: NPIntArray) -> float:
+    """Average IoU across classes. NB: only considers classes in $ground_truth."""
     mious = class_avg_mious(prediction, ground_truth)
     mean = np.mean(mious)
     return float(mean)
@@ -97,12 +99,17 @@ PALETTE_RGB_NORM = [[v / 255.0 for v in cast(tuple[int, ...], getcolor(c, "RGB")
 def apply_labels_as_overlay(
     labels: np.ndarray, img: Image.Image, colors: list, alpha: float = 1.0, bg_label: int = 0
 ) -> Image.Image:
+    """Create composite image by overlaying (H,W) label array on $img."""
     labels_unsqueezed = np.expand_dims(labels, -1)
 
     overlay = label2rgb(labels, colors=colors, kind="overlay", bg_label=bg_label, image_alpha=1, alpha=alpha)
     out = np.where(labels_unsqueezed, overlay * 255, np.array(img)).astype(np.uint8)
     img_with_labels = Image.fromarray(out)
     return img_with_labels
+
+
+def recolor_labels(labels: np.ndarray, colors: list = PALETTE_RGB_NORM[1:], bg_label: int = 0) -> np.ndarray:
+    return label2rgb(labels, colors=colors, kind="overlay", bg_label=bg_label, image_alpha=1, alpha=1)
 
 
 # ========== LOGGING ==========
@@ -112,6 +119,8 @@ def add_color(string: str, color_code: str) -> str:
 
 
 class ColorFormatter(logging.Formatter):
+    """Boring custom logger."""
+
     TIME_COLOR = "\033[90m"  # gray
     COLORS = {
         logging.DEBUG: "\033[36m",  # Cyan

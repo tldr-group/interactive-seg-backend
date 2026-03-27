@@ -10,6 +10,8 @@ from interactive_seg_backend.configs import NPFloatArray, NPUIntArray
 
 
 class Classifier(ABC):
+    """Abstract base class interface for classifiers."""
+
     def __init__(self, extra_args: dict[str, Any]) -> None:
         pass
 
@@ -50,6 +52,7 @@ class Classifier(ABC):
 
 
 def load_classifier(path: str) -> Classifier:
+    """Simpler helper to load classifier objects saved in either pickle or skops format."""
     obj: Classifier
     ext = path.split(".")[-1]
     if "pkl" in ext:

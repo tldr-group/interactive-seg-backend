@@ -12,6 +12,8 @@ __all__ = [
     "featurise",
     "apply",
     "train_and_apply",
+    "get_model",
+    "get_training_data",
 ]
 
 
@@ -24,5 +26,5 @@ from .features import (
     concat_feats,
 )
 from .classifiers import Classifier
-from .core import featurise_, train
+from .core import featurise_, train, get_model, get_training_data
 from .main import featurise, apply, train_and_apply
