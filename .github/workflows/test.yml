@@ -16,27 +16,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Ensure test directories exist
+        run: mkdir -p tests/out tests/data
+
+      - name: Cache test feature stack
+        id: cache-feature-stack
+        uses: actions/cache@v4
+        with:
+          path: tests/data
+          key: feature-stack-tif-v1
+
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
           enable-cache: true
           cache-dependency-path: pyproject.toml
 
-      - name: Cache test feature stack
-        uses: actions/cache@v4
-        with:
-          path: tests/data/feature-stack.tif
-          key: feature-stack-tif-v1
-
       - name: Install dependencies with extras [cpu,dev]
         run: uv sync --extra cpu --extra dev
 
-      - name: Prepare test data
-        run: |
-          mkdir -p tests/out tests/data
-          if [ ! -f tests/data/feature-stack.tif ]; then
-            curl -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
-          fi
+      - name: Download feature stack (if cache miss)
+        if: steps.cache-feature-stack.outputs.cache-hit != 'true'
+        run: curl -L -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
 
       - name: Run tests
         run: uv run pytest -s
