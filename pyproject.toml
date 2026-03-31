@@ -73,3 +73,7 @@ default = true          # everything else comes from PyPI
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true         # only packages explicitly pinned to this index
+
+[tool.ruff]
+# Ignore notebooks
+extend-exclude = ["*.ipynb"]

@@ -1,7 +1,7 @@
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import RidgeClassifier, LogisticRegression
 from sklearn.neural_network import MLPClassifier
-from sklearn.preprocessing import scale, minmax_scale
+from sklearn.preprocessing import minmax_scale
 from numpy import nan_to_num
 
 from interactive_seg_backend.configs import NPFloatArray, NPUIntArray
