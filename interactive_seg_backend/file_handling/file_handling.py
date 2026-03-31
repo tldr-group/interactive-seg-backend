@@ -117,6 +117,7 @@ def save_segmentation(
     rescale: bool = True,
     as_png: bool = False,
     offset: int = 1,
+    name: str = "segmentation",
 ) -> None:
     to_save: npt.NDArray[np.uint8]
     if rescale:
@@ -130,7 +131,7 @@ def save_segmentation(
     else:
         imwrite(out_path, to_save, compression=COMPRESSION.DEFLATE)
 
-    logger.info(f"Saved segmentation to {out_path}")
+    logger.info(f"Saved {name} to {out_path}")
 
 
 def save_labels(
@@ -139,4 +140,4 @@ def save_labels(
     rescale: bool = True,
     as_png: bool = False,
 ) -> None:
-    save_segmentation(arr, out_path, rescale, as_png, offset=0)
+    save_segmentation(arr, out_path, rescale, as_png, offset=0, name="labels")

@@ -32,6 +32,8 @@ jobs:
           enable-cache: true
           cache-dependency-path: pyproject.toml
 
+      # TODO: add linting in here w/ ruff?
+
       - name: Install dependencies with extras [cpu,dev]
         run: uv sync --extra cpu --extra dev
 
