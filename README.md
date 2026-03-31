@@ -1,9 +1,15 @@
 # interactive-seg-backend
 
+[![CI](https://github.com/tldr-group/interactive-seg-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/tldr-group/interactive-seg-backend/actions/workflows/ci.yml)
+<a href="https://opensource.org/licenses/MIT">
+            <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT LICENSE">
+</a>
+
 Generic backend for interactive feature-based segmentation in python with optional CUDA featurisation. Designed to be easy to use & extend. Check out the [`examples/`](examples/) to get started, or [`interactive-seg-gui`](https://github.com/tldr-group/interactive-seg-gui) for a low/no-install GUI which uses this backend.
 
 ## Contents
-- [Summary](#what-is-interactive-segmentation)
+- [Introduction](#what-is-interactive-segmentation)
+- [Minimal example](#minimal-example)
 - [Project structure](#project-structure)
 - [Installation](#installation)
 - [Benchmark](#benchmark)
@@ -14,9 +20,31 @@ Generic backend for interactive feature-based segmentation in python with option
 
 ## What is interactive segmentation?
 
+Interactive or trainable segmentation trains a lightweight classifier (such as a random forest or XGBoost) to map from features that describe an image to arbritrary, user-drawn labels. It is a popular segmentation technique in biological or materials image analysis for several reasons: it is fast, it is flexible, it requires much less training data than a CNN but can segment more complex structures than, say, thresholding. 
+
+Popular examples include [trainable weka segmentation](https://imagej.net/plugins/tws/), [ilastik](https://www.ilastik.org/) and [napari-apoc](github.com/haesleinhuepf/napari-accelerated-pixel-and-object-classification) [1-3].
+These tools typically come bundled with a GUI, because this is the best way to add labels, see the result, and correct mistakes by adding more labels.
+They also tend to be difficult to extend, either becuase they're already a plugin, or are written in (sensible) languages like C++ or Java. My need to rapidly prototype and test additions to the workflow (especially integration with the pytorch ecosystem) across various projects led to me developing this package. My goal was to create an extensible headerless library, one which could easily integrate with a GUI but that could operate with out (for batch processing etc). I also wanted to add various improvements people have added over the years: autocontext [4], domain-inspired losses [5] and Conditional Random Field (CRF) post-processing [6].
+
+## Minimal example
+
+```python
+from interactive_seg_backend.file_handling import load_image, load_labels
+from interactive_seg_backend import featurise, TrainingConfig, FeatureConfig, train_and_apply
+# setup configs
+feature_config = FeatureConfig()
+training_config = TrainingConfig(feature_config=feature_config, classifier='random_forest')
+# load in data - assumes labels stored as (H,W) uint tiff where 0=unlabelled pixels 
+image = load_image('path/to/your/image.png')
+labels = load_labels('path/to/your/labels.tiff')
+# compute features & do end-to-end training and applying
+features = featurise(image, training_config)
+segmentation, probabilities, trained_classifier = train_and_apply(features, labels, training_config)
+```
+
 ## Project structure
 
-This library has been designed to be extensible and flexible, favouring typed pure functions that can be dropped into different workflows. In short: which features are computed for an image are defined in a `FeatureConfig`, which lives inside a `TrainingConfig` that contains additional information about which classifier, post-processing etc to use. This `FeatureConfig` determines the filters called and their length-scales in `multiscale_classical_cpu.py`. This returns a (H,W,N_features) feature stack which is used alongside supplied user labels in `core.py` to train a `Classifier`. 
+This library has been designed to be extensible and flexible, favouring typed pure functions that can be dropped into different workflows. In short: which features are computed for an image are defined in a `FeatureConfig()`, which lives inside a `TrainingConfig()` that contains additional information about which classifier, post-processing etc to use. This `FeatureConfig()` determines the filters called and their length-scales in `multiscale_classical_cpu.py`. This returns a (H,W,N_features) feature stack which is used alongside supplied user labels in `core.py` to train a `Classifier()`. The trained `Classifier()` can then be used in `apply()` to predict classes for unlabelld pixels.
 
 ```bash
 examples/ # jupyter notebooks explaing how to run the library
@@ -98,6 +126,17 @@ mkdir tmp
 python -m cProfile -s tottime interactive_seg_backend/features/multiscale_classical_cpu.py > tmp/bench.txt
 ```
 
+### Featurising:
+| Step | Size | Weka | Ours (CPU) | Ours (GPU) |
+| ---- | ---- | ---- | ---- | ---- |
+| Featurising | (750, 750) | 2628ms | 897ms | 303ms
+| Featurising | (1500, 1500) | 8251ms | 3221ms | 493ms
+| Applying | (750, 750) | 563ms |
+| Applying | (1500, 1500) | 2941ms |
+
+
+TODO: perf table on featurisation time on images of diff sizes for you, you GPU and weka
+
 ## Tests
 
 Requires the pytest package (`pip install '.[dev]'`)
@@ -107,10 +146,24 @@ mkdir tests/out
 # grab the reference feature stack:
 curl -o tests/data/feature-stack.tif https://sambasegment.blob.core.windows.net/resources/isb_test_data/feature-stack.tif
 pytest -s
+# or, `uv run pytest -s `
 ```
 
 ## Contributing
 
+Contributions are always welcome! Just create a branch, write the feature and open a pull-request to main - this should trigger the CI (which runs test and code linting). The CI needs to pass before the branch can be merged. If you are adding a feature, please add commensurate tests to `tests/`. Examples of things that would be good additions:
+
+- More features! Stuff like [Gabor](https://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/TRAPP1/filter.html), [Kuwahara](https://blog.maximeheckel.com/posts/on-crafting-painterly-shaders/), [Lipschitz](https://imagej.net/ij/plugins/lipschitz/) or [Entropy](https://imagej.net/plugins/tws/#:~:text=Entropy) filters, as well as GPU implementations. Approximations are a-okay!
+- More classifiers, such as [Generalized Additive Models](https://pygam.readthedocs.io/en/latest/notebooks/tour_of_pygam.html), Gaussian process classifiers, RBF SVMs etc. Also of interest are GPU versions of these classifers.
+- More segmentation post-processing approaches i.e. min size / mean curvature / ... filtering.
+
 ## Citation
 
 ## References
+
+1.
+2.
+3.
+4.
+5.
+6.
