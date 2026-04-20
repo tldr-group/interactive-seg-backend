@@ -1,10 +1,9 @@
-from IPython.testing.decorators import f
-from PIL.ImageFont import load
 import numpy as np
 from time import time_ns
 from torch.cuda import synchronize
 from interactive_seg_backend.file_handling import load_image, load_labels
-from interactive_seg_backend import featurise, FeatureConfig, TrainingConfig, train, apply, train_and_apply
+from interactive_seg_backend import featurise, FeatureConfig, TrainingConfig, apply, train_and_apply
+from skimage.transform import resize
 import argparse
 
 feat_cfg = FeatureConfig()
@@ -25,8 +24,8 @@ def bench_feats_isb(img: np.ndarray, cfg: TrainingConfig, N: int) -> None:
         featurise(img, cfg)
         synchronize()
         end = time_ns()
-        times.append(1000 * (end - start))
-    print(f"ISB; Feats for ({img.shape}); GPU={cfg.use_gpu};\nTime: {np.mean(times):.3f} ± {np.std(times):.3f} seconds")
+        times.append((end - start) / 1e6)
+    print(f"ISB; Feats for ({img.shape}); GPU={cfg.use_gpu};\nTime: {np.mean(times):.3f} ± {np.std(times):.3f} ms")
 
 
 def bench_apply_isb(img: np.ndarray, labels: np.ndarray, cfg: TrainingConfig, N: int) -> None:
@@ -40,8 +39,8 @@ def bench_apply_isb(img: np.ndarray, labels: np.ndarray, cfg: TrainingConfig, N:
         apply(model, feats, cfg)
         synchronize()
         end = time_ns()
-        times.append(1000 * (end - start))
-    print(f"ISB; Apply for ({img.shape}); GPU={cfg.use_gpu};\nTime{np.mean(times):.3f} ± {np.std(times):.3f} seconds")
+        times.append((end - start) / 1e6)
+    print(f"ISB; Apply for ({img.shape}); GPU={cfg.use_gpu};\nTime: {np.mean(times):.3f} ± {np.std(times):.3f} ms")
 
 
 if __name__ == "__main__":
@@ -67,6 +66,7 @@ if __name__ == "__main__":
     small_img = load_image(f"{small_img_path}")
     large_img = load_image(f"{large_img_path}")
     labels = load_labels(labels_path)
+    large_labels = resize(labels, large_img.shape, order=0, preserve_range=True)
 
     bench_feats_isb(small_img, cpu_cfg, N)
     bench_feats_isb(small_img, gpu_cfg, N)
@@ -75,5 +75,5 @@ if __name__ == "__main__":
 
     bench_feats_isb(large_img, cpu_cfg, N)
     bench_feats_isb(large_img, gpu_cfg, N)
-    bench_apply_isb(large_img, labels, cpu_cfg, N)
-    bench_apply_isb(large_img, labels, gpu_cfg, N)
+    bench_apply_isb(large_img, large_labels, cpu_cfg, N)
+    bench_apply_isb(large_img, large_labels, gpu_cfg, N)

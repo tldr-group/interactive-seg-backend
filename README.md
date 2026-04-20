@@ -44,7 +44,7 @@ segmentation, probabilities, trained_classifier = train_and_apply(features, labe
 
 ## Project structure
 
-This library has been designed to be extensible and flexible, favouring typed pure functions that can be dropped into different workflows. In short: which features are computed for an image are defined in a `FeatureConfig()`, which lives inside a `TrainingConfig()` that contains additional information about which classifier, post-processing etc to use. This `FeatureConfig()` determines the filters called and their length-scales in `multiscale_classical_cpu.py`. This returns a (H,W,N_features) feature stack which is used alongside supplied user labels in `core.py` to train a `Classifier()`. The trained `Classifier()` can then be used in `apply()` to predict classes for unlabelld pixels.
+This library has been designed to be extensible and flexible, favouring typed pure functions that can be dropped into different workflows. In short: which features are computed for an image are defined in a `FeatureConfig()`, which lives inside a `TrainingConfig()` that contains additional information about which classifier, post-processing etc to use. This `FeatureConfig()` determines the filters called and their length-scales in `multiscale_classical_cpu.py`. This returns a (H,W,N_features) feature stack which is used alongside supplied user labels in `core.py` to train a `Classifier()`. The trained `Classifier()` can then be used in `apply()` to predict classes for unlabelled pixels.
 
 ```bash
 examples/ # jupyter notebooks explaing how to run the library
@@ -121,21 +121,28 @@ uv sync --extra gpu --extra dev
 
 ## Benchmark
 
+One-off:
 ```bash
 mkdir tmp
 python -m cProfile -s tottime interactive_seg_backend/features/multiscale_classical_cpu.py > tmp/bench.txt
 ```
 
-### Featurising:
-| Step | Size | Weka | Ours (CPU) | Ours (GPU) |
+Comparison to Weka for featurising / applying on different sized images. To run the Weka beanshell scripts (`*.bsh`), you'll need to use ImageJ/FIJI's script editor (with BeanShell support). For me this is `Help>Examples>BeanShell>Sphere`, which opens a small popup. Then navigate to `File>New`, which opens the editor proper. You can then open the scripts and use the `Run` button.
+
+
+| Step | Size | Weka | Ours (CPU) | Ours (GPU)* |
 | ---- | ---- | ---- | ---- | ---- |
-| Featurising | (750, 750) | 2628ms | 897ms | 303ms
-| Featurising | (1500, 1500) | 8251ms | 3221ms | 493ms
-| Applying | (750, 750) | 563ms |
-| Applying | (1500, 1500) | 2941ms |
+| Featurising | (512, 512) | 1034 ± 100 ms | 489 ± 109 ms | 27 ± 3 ms
+| Featurising | (1536, 1536) | 9796 ± 172 ms | 4810 ± 205 ms | 159 ± 4 ms
+| Applying | (512, 512) | 828 ± 166 ms | 417 ± 34 ms | 15 ± 0.4 ms |
+| Applying | (1536, 1536) | 7191 ± 580 ms | 4687 ± 300 ms | 132 ± 3 ms 
 
 
-TODO: perf table on featurisation time on images of diff sizes for you, you GPU and weka
+*GPU times don't count passing features -> CPU transfer & GPU apply uses XGBoost, which is faster in general than random-forest
+
+**Applying times measured on 3-phase SEM image with complex structure - this should produce a representatively complex tree structure
+
+***Measured over 10 repeats
 
 ## Tests
 
@@ -156,14 +163,15 @@ Contributions are always welcome! Just create a branch, write the feature and op
 - More features! Stuff like [Gabor](https://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/TRAPP1/filter.html), [Kuwahara](https://blog.maximeheckel.com/posts/on-crafting-painterly-shaders/), [Lipschitz](https://imagej.net/ij/plugins/lipschitz/) or [Entropy](https://imagej.net/plugins/tws/#:~:text=Entropy) filters, as well as GPU implementations. Approximations are a-okay!
 - More classifiers, such as [Generalized Additive Models](https://pygam.readthedocs.io/en/latest/notebooks/tour_of_pygam.html), Gaussian process classifiers, RBF SVMs etc. Also of interest are GPU versions of these classifers.
 - More segmentation post-processing approaches i.e. min size / mean curvature / ... filtering.
+- (Pretty tough one) For small images, most the GPU cost is in data transfer - I current do img CPU -> feats CUDA -> feats CPU -> feats CuPy -> pred CPU. Cutting out the intermediate feats CUDA -> feats CPU could save some time. Where I got held up was making sure the typing story worked with cpu only builds once the array type was generalised to include torch tenors - this could be avoided with a separate API but I'd prefer to keep everything unified.
 
 ## Citation
 
 ## References
 
-1.
-2.
-3.
-4.
-5.
-6.
+1. I.Arganda-Carreras, *et al.*, "Trainable Weka Segmentation: a machine learning tool for microscopy pixel classification", *Bioinformatics*, (2017)
+2. S. Berg, *et al.*, "ilastik: interactive machine learning for (bio)image analysis", *Nature Methods*, (2019)
+3. R. Haase, *et al.*, "napari-accelerated-pixel-and-object-classification", *GitHub*, (2021)
+4. I.Arganda-Carreras, *et al.*, "Trainable Weka Segmentation: a machine learning tool for microscopy pixel classification", *Bioinformatics*, (2017)
+5. N. Prakash, *et al.*, "ExpertSegmentation: Segmentation for microscopy with domain-informed targets via custom loss", *Acta Materialia*, (2025)
+6. I.Arganda-Carreras, *et al.*, "Efficient Inference in Fully Connected CRFs with Gaussian Edge Potentials", *Neurips*, (2012)
