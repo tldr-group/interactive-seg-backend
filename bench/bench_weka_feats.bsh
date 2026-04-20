@@ -1,0 +1,137 @@
+// ==============================
+// PARAMETERS
+// ==============================
+
+#@ String imagePath
+#@ String labelPath
+#@ String nStr
+
+
+String cwd = System.getProperty("user.dir") + "/";
+
+
+String parsedImagePath = cwd + imagePath.replace("\n", "");
+String parsedLabelPath = cwd + labelPath.replace("\n", "");
+int N = Integer.parseInt(nStr.replace("\n", ""));
+
+print(parsedImagePath);
+print(parsedLabelPath);
+
+// Feature control (example: enable all or subset)
+enableFeatures = null; // null = default; or boolean[]
+
+
+
+// ==============================
+// IMPORTS
+// ==============================
+import ij.IJ;
+import ij.ImagePlus;
+import ij.process.ImageProcessor;
+import ij.gui.Roi;
+
+import trainableSegmentation.WekaSegmentation;
+import trainableSegmentation.FeatureStackArray;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.util.ArrayList;
+
+
+// ==============================
+// LOAD IMAGE
+// ==============================
+ImagePlus imp = IJ.openImage(parsedImagePath);
+
+
+// ==============================
+// LOAD + DECODE RLE LABELS
+// ==============================
+BufferedReader br = new BufferedReader(new FileReader(parsedLabelPath));
+String line = br.readLine();
+br.close();
+
+String[] tokens = line.split(" ");
+int H = Integer.parseInt(tokens[0]);
+int W = Integer.parseInt(tokens[1]);
+
+ImagePlus labels = IJ.createImage("labels", "8-bit black", W, H, 1);
+ImageProcessor lp = labels.getProcessor();
+
+int index = 0;
+int t = 2;
+
+while (t < tokens.length) {
+    int value = Integer.parseInt(tokens[t]);
+    int count = Integer.parseInt(tokens[t+1]);
+
+    for (int i = 0; i < count; i++) {
+        int x = index % W;
+        int y = index / W;
+
+        lp.set(x, y, value);
+        index++;
+    }
+    t += 2;
+}
+
+
+WekaSegmentation initWeka(ImagePlus imp, ImageProcessor lp, int W, int H, boolean[] enableFeatures) {
+    WekaSegmentation weka = new WekaSegmentation(imp);
+    if (enableFeatures != null) {
+        weka.setEnabledFeatures(enableFeatures);
+    }
+    int maxClass = 0;
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+            int v = lp.get(x, y);
+            if (v > maxClass) maxClass = v;
+        }
+    }
+    // add classes
+    for (int c = 1; c <= maxClass; c++) {
+        weka.addClass();
+    }
+    // add examples
+    for (int y = 0; y < H; y++) {
+        for (int x = 0; x < W; x++) {
+
+            int cls = lp.get(x, y);
+
+            if (cls > 0) {
+                weka.addExample(cls - 1, new Roi(x, y, 1, 1), 1);
+            }
+        }
+    }
+
+    return weka;
+}
+
+
+double[] times = new double[N];
+for (int i = 0; i < N; i++) {
+	WekaSegmentation weka = initWeka(imp, lp, W, H, enableFeatures);
+	long start = System.currentTimeMillis();
+	weka.trainClassifier();
+	long end = System.currentTimeMillis();
+	long totalFeatTime = end - start;
+	times[i] = (double)(end - start);
+	System.gc();
+}
+
+double sum = 0.0;
+for (int i = 0; i < N; i++) {
+    sum += times[i];
+}
+double mean = sum / N;
+
+double vari = 0.0;
+for (int i = 0; i < N; i++) {
+    double d = times[i] - mean;
+    vari += d * d;
+}
+vari = vari / N;   // population variance; use (N-1) if you want sample variance
+double std = Math.sqrt(vari);
+
+print("Feats: (" + H + ", " + W + ")");
+print("JSON:{\"mean_ms\": " + mean + ", \"std_ms\": " + std + "}");
