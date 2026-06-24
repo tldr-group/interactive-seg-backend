@@ -1,6 +1,5 @@
 from numpy import log2, logspace
-from pydantic import BaseModel
-from dataclasses import fields, Field, field
+from pydantic import BaseModel, Field
 from json import load
 from typing import Any, get_args
 
@@ -89,18 +88,16 @@ class FeatureConfig(BaseModel):
     use_gpu: bool = False
 
     def _check_if_filters_allowed_with_gpu(self) -> None:
-        cls_fields: tuple[Field[Any], ...] = fields(self.__class__)
-        for cls_field in cls_fields:
-            name = cls_field.name
+        for name in self.__class__.model_fields:
             is_disallowed = name in GPU_DISALLOWED_FEATURES
             if is_disallowed:
-                field_val = self.__getattribute__(name)
+                field_val = getattr(self, name)
                 if field_val is True:
                     raise Exception(f"Using a CPU only feature, `{name}` in GPU mode!")
 
-    def __post_init__(self) -> None:
+    def model_post_init(self, __context: Any) -> None:
         assert self.min_sigma >= 0, "min_sigma must be greater than (or equal to) 0"
-        assert self.max_sigma <= 64, "max_sigma must be less than (or equal to) 64"
+        assert self.max_sigma <= 128, "max_sigma must be less than (or equal to) 64"
 
         if self.min_sigma != 1.0 or self.max_sigma != 16.0:
             # update sigmas based on min/max if changed
@@ -232,8 +229,8 @@ class TrainingConfig(BaseModel):
 
     classifier: ClassifierNames = "random_forest"
     # `classifier_params` are any addtional params passed to classifier init (i.e tree_depth etc)
-    # we need field(default_factory) as dicts are mutable and therefore can't be dataclass default args
-    classifier_params: dict[str, Any] = field(default_factory=dict[str, Any])
+    # we need Field(default_factory) as dicts are mutable
+    classifier_params: dict[str, Any] = Field(default_factory=dict)
 
     balance_classes: bool = True
     shuffle_data: bool = True
@@ -262,7 +259,7 @@ class TrainingConfig(BaseModel):
     def __str__(self) -> str:
         return self.__repr__()
 
-    def __post_init__(self) -> None:
+    def model_post_init(self, __context: Any) -> None:
         if self.balance_classes and self.classifier in (
             "random_forest",
             "logistic_regression",

@@ -317,5 +317,38 @@ class TestCPUWekaEquivalence:
         )
 
 
+class TestFeatureConfigSigma:
+    def test_sigma_updates(self) -> None:
+        # Default config
+        cfg_default = FeatureConfig()
+        assert cfg_default.sigmas == (1.0, 2.0, 4.0, 8.0, 16.0)
+
+        # Changing min and max sigma
+        cfg_custom = FeatureConfig(min_sigma=2.0, max_sigma=8.0)
+        assert cfg_custom.sigmas == (2.0, 4.0, 8.0)
+
+        # Changing min_sigma only
+        cfg_min_only = FeatureConfig(min_sigma=4.0)
+        assert cfg_min_only.sigmas == (4.0, 8.0, 16.0)
+
+        # Changing max_sigma only
+        cfg_max_only = FeatureConfig(max_sigma=4.0)
+        assert cfg_max_only.sigmas == (1.0, 2.0, 4.0)
+
+        # Let's verify with an image and check the shape of the output featurestack
+        dummy_img = np.zeros((32, 32), dtype=np.uint8)
+
+        # Let's compute multiscale_features for default and custom config
+        features_default = ft.multiscale_features(dummy_img, cfg_default)
+        features_custom = ft.multiscale_features(dummy_img, cfg_custom)
+
+        # Make sure that get_filter_strings() length matches the feature stack shape
+        assert features_default.shape[2] == len(cfg_default.get_filter_strings())
+        assert features_custom.shape[2] == len(cfg_custom.get_filter_strings())
+
+        # The number of filters for the custom config should be less than the default since it has fewer sigmas
+        assert features_custom.shape[2] < features_default.shape[2]
+
+
 if __name__ == "__main__":
     pytest.main(args=["-k test_features", "-s"])

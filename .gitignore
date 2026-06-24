@@ -180,3 +180,5 @@ interactive_seg_backend/configs/examples/*
 
 expertsegmentation
 trained_models
+
+tmp
