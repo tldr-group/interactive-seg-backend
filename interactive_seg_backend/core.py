@@ -19,7 +19,21 @@ from interactive_seg_backend.configs.types import (
     NPUIntArray,
     ClassifierNames,
 )
-from interactive_seg_backend.classifiers import Classifier, RandomForest, Logistic, Linear, XGBCPU, XGBGPU, MLP
+from interactive_seg_backend.classifiers import (
+    Classifier,
+    RandomForest,
+    Logistic,
+    Linear,
+    XGBCPU,
+    XGBGPU,
+    MLP,
+    Otsu,
+    KMeansClassifier,
+    BoundaryBasedClassifier,
+    SeededRegionGrowing,
+    StatisticalRegionMerging,
+    WatershedClassifier,
+)
 from interactive_seg_backend.processing import preprocess
 from interactive_seg_backend.utils import logger
 
@@ -135,6 +149,16 @@ def get_model(model_type: ClassifierNames, extra_args: dict[str, Any], to_gpu: b
         return XGBGPU(extra_args)
     elif model_type == "mlp":
         return MLP(extra_args)
+    elif model_type == "otsu":
+        return Otsu(extra_args)
+    elif model_type == "kmeans":
+        return KMeansClassifier(extra_args)
+    elif model_type == "seeded_region_growing":
+        return SeededRegionGrowing(extra_args)
+    elif model_type == "srm":
+        return StatisticalRegionMerging(extra_args)
+    elif model_type == "watershed":
+        return WatershedClassifier(extra_args)
     else:
         raise Exception("Not implemented!")
 
@@ -192,6 +216,9 @@ def train_and_apply_(
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)
+    if isinstance(model, BoundaryBasedClassifier):
+        model.full_features = features
+        model.full_labels = labels
     model = train(model, fit, target, None)
     pred, probs = apply_(model, features)
     return pred, probs, model

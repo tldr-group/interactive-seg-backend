@@ -11,7 +11,7 @@ from interactive_seg_backend.features import (
 )
 from interactive_seg_backend.configs.types import AnyArr, Arrlike, NPFloatArray, NPUIntArray
 
-from interactive_seg_backend.classifiers import Classifier
+from interactive_seg_backend.classifiers import Classifier, BoundaryBasedClassifier
 from interactive_seg_backend.core import (
     get_labelled_training_data_from_stack,
     shuffle_sample_training_data,
@@ -97,6 +97,14 @@ def apply(
     Returns:
         tuple[NPUIntArray, NPFloatArray]: (H,W) label array of segmentation and (H,W,N_classes) array of class probabilities.
     """
+    model.full_features = features
+    if labels is not None:
+        model.full_labels = labels
+    elif isinstance(model, BoundaryBasedClassifier):
+        raise ValueError(
+            "Boundary-based classifiers (Seeded Region Growing, SRM, Watershed) "
+            "require 'labels' (seeds) during prediction. Please pass 'labels' to apply()."
+        )
     seg, probs_2D = apply_(model, features)
     _, _, n_classes = probs_2D.shape
 
@@ -137,6 +145,9 @@ def train_and_apply(
     fit, target = get_labelled_training_data_from_stack(features, labels)
     fit, target = shuffle_sample_training_data(fit, target, train_cfg.shuffle_data, train_cfg.n_samples)
     model = get_model(train_cfg.classifier, train_cfg.classifier_params, train_cfg.use_gpu)
+    if isinstance(model, BoundaryBasedClassifier):
+        model.full_features = features
+        model.full_labels = labels
     model = train(model, fit, target, None)
     pred, probs = apply(model, features, train_cfg, labels=labels, image=image)
     return pred, probs, model

@@ -47,7 +47,18 @@ PossibleFeatures = Literal[
     "laplacian",
 ]
 
-ClassifierNames = Literal["linear_regression", "logistic_regression", "random_forest", "xgb", "mlp"]
+ClassifierNames = Literal[
+    "linear_regression",
+    "logistic_regression",
+    "random_forest",
+    "xgb",
+    "mlp",
+    "otsu",
+    "kmeans",
+    "seeded_region_growing",
+    "srm",
+    "watershed",
+]
 Preprocessing = Literal["denoise", "equalize", "blur"]
 Postprocessing = Literal["modal_filter"]
 LabellingStrategy = Literal["sparse", "dense", "interfaces"]
