@@ -61,8 +61,12 @@ def e2e_get_miou(
     fit, target = get_labelled_training_data_from_stack(features, label)
     fit, target = shuffle_sample_training_data(fit, target, cfg.shuffle_data, cfg.n_samples)
     model = get_model(cfg.classifier, cfg.classifier_params, cfg.use_gpu)
+    from interactive_seg_backend.classifiers import BoundaryBasedClassifier
+    if isinstance(model, BoundaryBasedClassifier):
+        model.full_features = features
+        model.full_labels = label
     model = train(model, fit, target, None)
-    pred, _ = apply(model, features, cfg)
+    pred, _ = apply(model, features, cfg, labels=label)
     rh, rw = pred.shape
     fh, fw, _ = features.shape
 
