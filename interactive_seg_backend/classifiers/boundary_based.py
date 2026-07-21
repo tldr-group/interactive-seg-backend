@@ -73,7 +73,9 @@ class BoundaryBasedClassifier(Classifier):
         if self.classes is None or self.region_map_ is None or self.labels_ is None:
             raise ValueError("Classifier must be fit before calling predict_proba")
         if self.full_features is None:
-            raise ValueError("Boundary-based classifiers require full_features to be set on the model. Please pass labels/image to apply().")
+            raise ValueError(
+                "Boundary-based classifiers require full_features to be set on the model. Please pass labels/image to apply()."
+            )
 
         # Cast features to float32 for compatibility and precision
         full_feats_32 = self.full_features.astype(np.float32)
@@ -123,11 +125,11 @@ class SeededRegionGrowing(BoundaryBasedClassifier):
         # Compute mean feature vector for each seed component
         comp_means = {}
         for comp_id in range(1, num_features + 1):
-            mask = (seeds_labeled == comp_id)
+            mask = seeds_labeled == comp_id
             comp_means[comp_id] = np.mean(features[mask], axis=0)
 
         pq = []
-        visited = (seeds_labeled > 0)
+        visited = seeds_labeled > 0
 
         dy = [-1, 1, 0, 0]
         dx = [0, 0, -1, 1]
@@ -158,7 +160,7 @@ class SeededRegionGrowing(BoundaryBasedClassifier):
                     if threshold is None or ndist <= threshold:
                         heapq.heappush(pq, (ndist, ny, nx, comp_id))
 
-        unassigned = (region_map == 0)
+        unassigned = region_map == 0
         if np.any(unassigned):
             _, indices = distance_transform_edt(unassigned, return_indices=True)
             region_map[unassigned] = region_map[indices[0], indices[1]][unassigned]
@@ -197,7 +199,7 @@ class StatisticalRegionMerging(BoundaryBasedClassifier):
         v = np.concatenate([v_h.ravel(), v_v.ravel()])
 
         diffs = flat_feats[u] - flat_feats[v]
-        dists = np.sqrt(np.sum(diffs ** 2, axis=1))
+        dists = np.sqrt(np.sum(diffs**2, axis=1))
 
         sort_idx = np.argsort(dists)
         u_sorted = u[sort_idx]
@@ -219,7 +221,7 @@ class StatisticalRegionMerging(BoundaryBasedClassifier):
             return root
 
         delta = 1.0 / (6.0 * n_pixels)
-        C_const = (g ** 2) * np.log(2.0 / delta) / (2.0 * Q)
+        C_const = (g**2) * np.log(2.0 / delta) / (2.0 * Q)
 
         for idx in range(len(u_sorted)):
             p1 = u_sorted[idx]
