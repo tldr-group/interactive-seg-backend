@@ -20,8 +20,11 @@ def to_onnx_image(img: Image.Image | np.ndarray) -> FloatArr:
     else:
         image_np = img
 
+    if len(image_np.shape) == 2:  # grayscale
+        image_np = np.stack([image_np] * 3, axis=-1)  # convert to RGB
+
     if np.amax(image_np) > 1:  # norm
-        image_np /= 255.0
+        image_np = np.array(image_np, np.float32) / 255.0
 
     image_np = np.transpose(image_np, (2, 0, 1))  # convert to CHW format
     if len(image_np.shape) == 3:  # add batch dimension
@@ -155,7 +158,7 @@ class SAMDecoderONNX:
         labels: FloatArr,
     ) -> tuple[FloatArr, FloatArr]:
         "ES ONNX uses shared interface for point and box prompts so use helper function"
-        img_size_onnx = np.array(img_size, dtype=np.float32)[None, :]
+        img_size_onnx = np.array(img_size, dtype=np.int64)
         predicted_logits: FloatArr
         predicted_iou: FloatArr
         predicted_logits, predicted_iou, _ = self.session.run(
@@ -184,7 +187,7 @@ class SAMDecoderONNX:
             return predicted_logits, scores
 
         best_mask_idx = np.argmax(scores)
-        return predicted_logits[best_mask_idx : best_mask_idx + 1], scores[best_mask_idx : best_mask_idx + 1]
+        return predicted_logits[0, 0, best_mask_idx], scores[best_mask_idx]
 
     def masks_from_points(
         self,
