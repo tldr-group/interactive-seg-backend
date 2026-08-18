@@ -25,6 +25,7 @@ from interactive_seg_backend.extensions.crf import (
     do_crf_from_probabilites,
     CRF_AVAILABLE,
 )
+from interactive_seg_backend.extensions.sam_onnx import do_sam_postproc, SAM_AVAILABLE
 from interactive_seg_backend.processing.postprocess import modal_filter
 from interactive_seg_backend.utils import logger
 
@@ -100,7 +101,7 @@ def apply(
     seg, probs_2D = apply_(model, features)
     _, _, n_classes = probs_2D.shape
 
-    if training_cfg.autocontext and CRF_AVAILABLE:
+    if training_cfg.autocontext:
         assert image is not None, "Need Image to do autocontext"
         assert labels is not None, "Need labels to do autocontext"
         new_feats = autocontext_features(image, labels, training_cfg, features, probs_2D, "autocontext_original")
@@ -114,6 +115,11 @@ def apply(
 
     if training_cfg.modal_filter:
         seg = modal_filter(seg, training_cfg.modal_filter_k)
+
+    sam_postproc_requested = any([c.do_sam_postproc for c in training_cfg.class_infos])
+    if sam_postproc_requested and SAM_AVAILABLE:
+        assert image is not None, "Need Image to do SAM post-processing"
+        seg = do_sam_postproc(seg, image, training_cfg.class_infos)
 
     return seg, probs_2D
 

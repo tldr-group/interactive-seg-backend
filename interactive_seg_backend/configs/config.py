@@ -215,6 +215,8 @@ class ClassInfo(BaseModel):
     desired_volume_fraction: float | None = None
     connectivity_target: ConnectivityObj = None
 
+    do_sam_postproc: bool = False
+
     def __repr__(self) -> str:
         return self.model_dump_json(ensure_ascii=True, indent=2)
 

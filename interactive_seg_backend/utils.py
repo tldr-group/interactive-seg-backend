@@ -112,6 +112,42 @@ def recolor_labels(labels: np.ndarray, colors: list = PALETTE_RGB_NORM[1:], bg_l
     return label2rgb(labels, colors=colors, kind="overlay", bg_label=bg_label, image_alpha=1, alpha=1)
 
 
+def add_inset_zoom(
+    ax,
+    xywh: list[int],
+    fig_xywh: list[float],
+    img_arr: np.ndarray,
+    labels: np.ndarray | None,
+    colors: list,
+    alpha: float = 1.0,
+    bg_label: int = 0,
+) -> object:
+    x0, y0, w, h = xywh
+    H, W, C = img_arr.shape
+    inset_data = np.zeros_like(img_arr)
+    inset_data[y0 : y0 + h, x0 : x0 + w, :] = img_arr[y0 : y0 + h, x0 : x0 + w, :]
+
+    axin = ax.inset_axes(fig_xywh, xlim=(x0, x0 + w), ylim=(y0, y0 + h))
+    axin.set_xticks([])
+    axin.set_yticks([])
+
+    if labels is not None:
+        inset_data = label2rgb(labels, img_arr, colors, kind="overlay", alpha=alpha, bg_label=bg_label)
+        axin.imshow(
+            inset_data,
+        )
+    else:
+        axin.imshow(
+            inset_data,
+            cmap="binary_r",
+        )
+    ax.indicate_inset_zoom(axin, edgecolor="black", lw=2)
+    axin.set_ylim((y0 + h, y0))
+    axin.patch.set_edgecolor("black")
+    axin.patch.set_linewidth(4)
+    return axin
+
+
 # ========== LOGGING ==========
 def add_color(string: str, color_code: str) -> str:
     RESET_CODE = "\033[0m"
