@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 NPFloatArray: TypeAlias = npt.NDArray[np.floating]
 NPIntArray: TypeAlias = npt.NDArray[np.integer]
 NPUIntArray: TypeAlias = npt.NDArray[np.uint8]
+NPBoolArray: TypeAlias = npt.NDArray[np.bool_]
 
 Arr: TypeAlias = NPFloatArray | NPIntArray
 

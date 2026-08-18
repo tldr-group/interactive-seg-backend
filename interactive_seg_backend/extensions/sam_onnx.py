@@ -1,15 +1,27 @@
-from onnxruntime import InferenceSession
 import numpy as np
 from PIL import Image
+from skimage.measure._regionprops import RegionProperties
+from skimage.measure import label, regionprops
 
 import platform
 from requests import get as rget
 from os import path, makedirs
 
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
 from interactive_seg_backend.utils import logger
-from interactive_seg_backend.configs import NPFloatArray
+from interactive_seg_backend.configs import NPUIntArray, NPFloatArray, ClassInfo
+
+sam_imported = True
+try:
+    from onnxruntime import InferenceSession
+except ImportError:
+    logger.warning("ONNX SAM unavailable!")
+    sam_imported = False
+SAM_AVAILABLE = sam_imported
+
+if TYPE_CHECKING:
+    from onnxruntime import InferenceSession
 
 
 def to_onnx_image(img: Image.Image | np.ndarray) -> NPFloatArray:
@@ -221,3 +233,70 @@ class SAMDecoderONNX:
         box_prompts_onnx, box_labels_onnx = to_onnx_box_prompt(boxes)
         predicted_logits, scores = self._run_model(embedding, img_size, box_prompts_onnx, box_labels_onnx)
         return self._process_results(predicted_logits, scores, threshold, threshold_val, multimask_output)
+
+
+MIN_SAM_AREA_PX = 225
+
+
+def do_sam_postproc(
+    seg: NPUIntArray,
+    img_arr: np.ndarray,
+    classes_to_process: list[ClassInfo],
+    cached_embedding: np.ndarray | None = None,
+    cached_regions: list[RegionProperties] | None = None,
+) -> np.ndarray:
+    """Perform SAM post-processing. Given a set of classes to perform SAM filtering on,
+    split into regions via `label()` and `regionprop()`, and for each region of that class
+    of the correct size (> ClassInfo.min_size_px or MIN_SAM_AREA_PX ), prompt SAM with the
+    bounding box that region. For the resulting mask, paste it over the original segmentation.
+
+    Args:
+        seg (NPUIntArray): (H,W) array of class values
+        img_arr (np.ndarray): (H,W,[C]) array of image values
+        classes_to_process (list[ClassInfo]): list of classinfos to process
+        cached_embedding (np.ndarray | None, optional): existing SAM embedding for image. Defaults to None.
+        cached_regions (list[RegionProperties] | None, optional): existing regionprops for image. Defaults to None.
+
+    Returns:
+        np.ndarray: (H,W) processed segmentation array
+    """
+    out_seg = seg.copy()
+    encoder = SAMEncoderONNX(None)
+    decoder = SAMDecoderONNX(None)
+
+    if cached_embedding is not None:
+        embed = cached_embedding
+    else:
+        embed = encoder.get_embedding(img_arr)
+
+    if cached_regions is not None:
+        regions = cached_regions
+    else:
+        regions = regionprops(label(seg))
+
+    regions_per_class: dict[int, list[RegionProperties]] = {class_info.value: [] for class_info in classes_to_process}
+    for region in regions:
+        region_seg_val: int = int(seg[region.coords[0][0], region.coords[0][1]])
+        if region_seg_val in regions_per_class:
+            regions_per_class[region_seg_val].append(region)
+
+    for class_info in classes_to_process:
+        if not class_info.do_sam_postproc:
+            continue
+
+        # class and size filtering - don't want to run SAM on single pixel regions
+        min_size = class_info.min_size_px if class_info.min_size_px is not None else MIN_SAM_AREA_PX
+        class_regions = regions_per_class[class_info.value]
+        class_regions_matching_size = [r for r in class_regions if r.area > min_size]
+
+        logger.info(f"SAM post-proc for class {class_info.name} on {len(class_regions_matching_size)} regions")
+
+        for region in class_regions_matching_size:
+            minr, minc, maxr, maxc = region.bbox
+            bbox = (minc, minr, maxc - minc, maxr - minr)  # (x, y, w, h)
+            # where SAM predicts, fill it with the class value
+            box_mask, _ = decoder.masks_from_boxes(embed, img_arr.shape[:2], [bbox], multimask_output=False)
+            # NB ESAM mask can be greater than bbox, so use full extent
+            out_seg[box_mask > 0] = class_info.value
+
+    return out_seg
