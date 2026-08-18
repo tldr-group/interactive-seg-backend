@@ -4,7 +4,6 @@ from skimage.measure._regionprops import RegionProperties
 from skimage.measure import label, regionprops
 
 import platform
-from requests import get as rget
 from os import path, makedirs
 
 from typing import Literal, TYPE_CHECKING
@@ -15,6 +14,7 @@ from interactive_seg_backend.configs import NPUIntArray, NPFloatArray, ClassInfo
 sam_imported = True
 try:
     from onnxruntime import InferenceSession
+    from requests import get as rget
 except ImportError:
     logger.warning("ONNX SAM unavailable!")
     sam_imported = False
@@ -22,6 +22,7 @@ SAM_AVAILABLE = sam_imported
 
 if TYPE_CHECKING:
     from onnxruntime import InferenceSession
+    from requests import get as rget
 
 
 def to_onnx_image(img: Image.Image | np.ndarray) -> NPFloatArray:
