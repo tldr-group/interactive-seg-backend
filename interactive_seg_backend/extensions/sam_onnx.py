@@ -91,6 +91,7 @@ def _maybe_make_cache_dir(cache_dir: str) -> None:
 
 
 def _download_from_hf_with_requests(filename: str, output_path: str) -> None:
+    logger.info(f"Downloading {filename} to {output_path} from huggingface")
     repo_id = "yunyangx/EfficientSAM"
     url = f"https://huggingface.co/{repo_id}/resolve/main/{filename}"
     response = rget(url, stream=True)
@@ -101,7 +102,7 @@ def _download_from_hf_with_requests(filename: str, output_path: str) -> None:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
 
-    logger.info(f"Downloaded {output_path}")
+    logger.info("Downloaded complete!")
 
 
 def download_sam_onnx_models(output_dir: str | None):
@@ -124,14 +125,14 @@ def load_or_download_model(checkpoint: str | None, which: Literal["encoder", "de
             raise FileNotFoundError(f"Specified checkpoint {checkpoint} does not exist.")
 
     cache_dir_path = _get_default_cache_path_for_platform()
-    cache_model_path = path.join(cache_dir_path, f"efficientsam_ti_{which}.onnx")
-    cached_model_exists = path.exists(cache_model_path)
+    cached_model_path = path.join(cache_dir_path, f"efficientsam_ti_{which}.onnx")
+    cached_model_exists = path.exists(cached_model_path)
     if cached_model_exists:
-        logger.info(f"Loading {which} model from cache at {cached_model_exists}")
-        return InferenceSession(cache_model_path)
+        logger.info(f"Loading {which} model from cache at {cached_model_path}")
+        return InferenceSession(cached_model_path)
     else:
         download_sam_onnx_models(cache_dir_path)
-        return InferenceSession(cache_model_path)
+        return InferenceSession(cached_model_path)
 
 
 class SAMEncoderONNX:
@@ -182,10 +183,14 @@ class SAMDecoderONNX:
         if threshold:
             predicted_logits = (predicted_logits > threshold_val).astype(np.float32)
         if multimask_output:
+            logger.info(f"esam: {predicted_logits.shape} masks with {scores}")
             return predicted_logits, scores
 
         best_mask_idx = np.argmax(scores)
-        return predicted_logits[0, 0, best_mask_idx], scores[best_mask_idx]
+        filtered_mask = predicted_logits[0, 0, best_mask_idx]
+        filtered_score = scores[best_mask_idx]
+        logger.info(f"esam: {filtered_mask.shape} masks with {filtered_score:.3f}")
+        return predicted_logits[0, 0, best_mask_idx], filtered_score
 
     def masks_from_points(
         self,
