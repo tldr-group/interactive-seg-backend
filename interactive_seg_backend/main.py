@@ -1,4 +1,3 @@
-import interactive_seg_backend
 import numpy as np
 from typing import Callable, TypeAlias
 
