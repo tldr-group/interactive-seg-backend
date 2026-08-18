@@ -128,7 +128,7 @@ def download_sam_onnx_models(output_dir: str | None):
         _download_from_hf_with_requests(model_name, model_path)
 
 
-def load_or_download_model(checkpoint: str | None, which: Literal["encoder", "decoder"]) -> InferenceSession:
+def load_or_download_model(checkpoint: str | None, which: Literal["encoder", "decoder"]) -> "InferenceSession":
     if checkpoint is not None:
         models_exist = path.exists(checkpoint)
         if models_exist:
