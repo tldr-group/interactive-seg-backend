@@ -24,7 +24,7 @@ Interactive or trainable segmentation trains a lightweight classifier (such as a
 
 Popular examples include [trainable weka segmentation](https://imagej.net/plugins/tws/), [ilastik](https://www.ilastik.org/) and [napari-apoc](github.com/haesleinhuepf/napari-accelerated-pixel-and-object-classification) [1-3].
 These tools typically come bundled with a GUI, because this is the best way to add labels, see the result, and correct mistakes by adding more labels.
-They also tend to be difficult to extend, either becuase they're already a plugin, or are written in (sensible) languages like C++ or Java. My need to rapidly prototype and test additions to the workflow (especially integration with the pytorch ecosystem) across various projects led to me developing this package. My goal was to create an extensible headerless library, one which could easily integrate with a GUI but that could operate with out (for batch processing etc). I also wanted to add various improvements people have added over the years: autocontext [4], domain-inspired losses [5] and Conditional Random Field (CRF) post-processing [6].
+They also tend to be difficult to extend, either becuase they're already a plugin, or are written in (sensible) languages like C++ or Java. My need to rapidly prototype and test additions to the workflow (especially integration with the pytorch ecosystem) across various projects led to me developing this package. My goal was to create an extensible headerless library, one which could easily integrate with a GUI but that could operate with out (for batch processing etc). I also wanted to add various improvements people have added over the years: autocontext [4], domain-inspired losses [5], Conditional Random Field (CRF) post-processing [6], and SAM post-processing [7].
 
 ## Minimal example
 
@@ -174,4 +174,5 @@ Contributions are always welcome! Just create a branch, write the feature and op
 3. R. Haase, *et al.*, "napari-accelerated-pixel-and-object-classification", *GitHub*, (2021)
 4. I.Arganda-Carreras, *et al.*, "Trainable Weka Segmentation: a machine learning tool for microscopy pixel classification", *Bioinformatics*, (2017)
 5. N. Prakash, *et al.*, "ExpertSegmentation: Segmentation for microscopy with domain-informed targets via custom loss", *Acta Materialia*, (2025)
-6. I.Arganda-Carreras, *et al.*, "Efficient Inference in Fully Connected CRFs with Gaussian Edge Potentials", *Neurips*, (2012)
+6. P. Krähenbühl, V. Koltun, "Efficient Inference in Fully Connected CRFs with Gaussian Edge Potentials", *Neurips*, (2012)
+7. M. Seifi *et al.*, "FeatureForest: the power of foundation models, the usability of random forests", *npj Imaging*, (2025)
