@@ -6,15 +6,13 @@ import platform
 from requests import get as rget
 from os import path, makedirs
 
-import numpy.typing as npt
-from typing import TypeAlias, Literal
+from typing import Literal
 
-import logging
-
-FloatArr: TypeAlias = npt.NDArray[np.floating]
+from interactive_seg_backend.utils import logger
+from interactive_seg_backend.configs import NPFloatArray
 
 
-def to_onnx_image(img: Image.Image | np.ndarray) -> FloatArr:
+def to_onnx_image(img: Image.Image | np.ndarray) -> NPFloatArray:
     if isinstance(img, Image.Image):  # cast
         image_np = np.array(img.convert("RGB"))  # in case it was L
     else:
@@ -32,7 +30,7 @@ def to_onnx_image(img: Image.Image | np.ndarray) -> FloatArr:
     return image_np
 
 
-def to_onnx_point_prompt(points: list[tuple[int, int]], labels: list[int]) -> tuple[FloatArr, FloatArr]:
+def to_onnx_point_prompt(points: list[tuple[int, int]], labels: list[int]) -> tuple[NPFloatArray, NPFloatArray]:
     """Map point list to ONNX format.
 
     Args:
@@ -49,7 +47,7 @@ def to_onnx_point_prompt(points: list[tuple[int, int]], labels: list[int]) -> tu
     return prompt_points_arr, prompt_labels_arr
 
 
-def to_onnx_box_prompt(boxes: list[tuple[int, int, int, int]]) -> tuple[FloatArr, FloatArr]:
+def to_onnx_box_prompt(boxes: list[tuple[int, int, int, int]]) -> tuple[NPFloatArray, NPFloatArray]:
     """Map bboxes to 2D points and labels for ONNX model input.
 
     Args:
@@ -61,9 +59,9 @@ def to_onnx_box_prompt(boxes: list[tuple[int, int, int, int]]) -> tuple[FloatArr
     n_points = 2 * len(boxes)
     box_points_arr = np.zeros((1, 1, n_points, 2), np.float32)
     box_labels_arr = np.zeros((1, 1, n_points), np.float32)
-    for x0, y0, h, w in boxes:
-        box_points_arr[0, 0, :, 0] = [x0, x0 + w, x0, x0 + w]
-        box_points_arr[0, 0, :, 1] = [y0, y0, y0 + h, y0 + h]
+    for x0, y0, w, h in boxes:
+        box_points_arr[0, 0, :, 0] = [x0, x0 + w]
+        box_points_arr[0, 0, :, 1] = [y0, y0 + h]
 
     for i in range(0, n_points, 2):
         # efficientSAM ONNX uses class label 2 for left edge and 3 for right edge
@@ -87,7 +85,7 @@ def _maybe_make_cache_dir(cache_dir: str) -> None:
     """Create the cache directory if it doesn't exist."""
     if not path.exists(cache_dir):
         makedirs(cache_dir, exist_ok=True)
-        logging.info(f"Creating ISB cache directory at {cache_dir}")
+        logger.info(f"Creating ISB cache directory at {cache_dir}")
     else:
         pass
 
@@ -103,7 +101,7 @@ def _download_from_hf_with_requests(filename: str, output_path: str) -> None:
         for chunk in response.iter_content(chunk_size=8192):
             file.write(chunk)
 
-    logging.info(f"Downloaded {output_path}")
+    logger.info(f"Downloaded {output_path}")
 
 
 def download_sam_onnx_models(output_dir: str | None):
@@ -120,7 +118,7 @@ def load_or_download_model(checkpoint: str | None, which: Literal["encoder", "de
     if checkpoint is not None:
         models_exist = path.exists(checkpoint)
         if models_exist:
-            logging.info(f"Loading {which} model from {checkpoint}")
+            logger.info(f"Loading {which} model from {checkpoint}")
             return InferenceSession(checkpoint)
         else:
             raise FileNotFoundError(f"Specified checkpoint {checkpoint} does not exist.")
@@ -129,7 +127,7 @@ def load_or_download_model(checkpoint: str | None, which: Literal["encoder", "de
     cache_model_path = path.join(cache_dir_path, f"efficientsam_ti_{which}.onnx")
     cached_model_exists = path.exists(cache_model_path)
     if cached_model_exists:
-        logging.info(f"Loading {which} model from cache at {cached_model_exists}")
+        logger.info(f"Loading {which} model from cache at {cached_model_exists}")
         return InferenceSession(cache_model_path)
     else:
         download_sam_onnx_models(cache_dir_path)
@@ -140,7 +138,7 @@ class SAMEncoderONNX:
     def __init__(self, checkpoint: str | None) -> None:
         self.session = load_or_download_model(checkpoint, "encoder")
 
-    def get_embedding(self, img: Image.Image | np.ndarray) -> FloatArr:
+    def get_embedding(self, img: Image.Image | np.ndarray) -> NPFloatArray:
         img_onnx = to_onnx_image(img)
         embed = self.session.run(None, {"batched_images": img_onnx})
         return embed  # type: ignore
@@ -152,15 +150,15 @@ class SAMDecoderONNX:
 
     def _run_model(
         self,
-        embedding: FloatArr,
+        embedding: NPFloatArray,
         img_size: tuple[int, int],
-        prompts: FloatArr,
-        labels: FloatArr,
-    ) -> tuple[FloatArr, FloatArr]:
+        prompts: NPFloatArray,
+        labels: NPFloatArray,
+    ) -> tuple[NPFloatArray, NPFloatArray]:
         "ES ONNX uses shared interface for point and box prompts so use helper function"
         img_size_onnx = np.array(img_size, dtype=np.int64)
-        predicted_logits: FloatArr
-        predicted_iou: FloatArr
+        predicted_logits: NPFloatArray
+        predicted_iou: NPFloatArray
         predicted_logits, predicted_iou, _ = self.session.run(
             None,
             {
@@ -175,12 +173,12 @@ class SAMDecoderONNX:
 
     def _process_results(
         self,
-        predicted_logits: FloatArr,
-        scores: FloatArr,
+        predicted_logits: NPFloatArray,
+        scores: NPFloatArray,
         threshold: bool,
         threshold_val: float,
         multimask_output: bool,
-    ) -> tuple[FloatArr, FloatArr]:
+    ) -> tuple[NPFloatArray, NPFloatArray]:
         if threshold:
             predicted_logits = (predicted_logits > threshold_val).astype(np.float32)
         if multimask_output:
@@ -191,14 +189,14 @@ class SAMDecoderONNX:
 
     def masks_from_points(
         self,
-        embedding: FloatArr,
+        embedding: NPFloatArray,
         img_size: tuple[int, int],
         point_prompts: list[tuple[int, int]],
         point_labels: list[int] | None,
         threshold: bool = True,
         threshold_val: float = 0.0,
         multimask_output: bool = True,
-    ) -> tuple[FloatArr, FloatArr]:
+    ) -> tuple[NPFloatArray, NPFloatArray]:
         if point_labels is None:  # assume +ve if not supplied
             point_labels = [1 for _ in point_prompts]
 
@@ -208,13 +206,13 @@ class SAMDecoderONNX:
 
     def masks_from_boxes(
         self,
-        embedding: FloatArr,
+        embedding: NPFloatArray,
         img_size: tuple[int, int],
         boxes: list[tuple[int, int, int, int]],
         threshold: bool = True,
         threshold_val: float = 0.0,
         multimask_output: bool = True,
-    ) -> tuple[FloatArr, FloatArr]:
+    ) -> tuple[NPFloatArray, NPFloatArray]:
         box_prompts_onnx, box_labels_onnx = to_onnx_box_prompt(boxes)
         predicted_logits, scores = self._run_model(embedding, img_size, box_prompts_onnx, box_labels_onnx)
         return self._process_results(predicted_logits, scores, threshold, threshold_val, multimask_output)
