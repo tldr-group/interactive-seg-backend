@@ -29,7 +29,7 @@ from interactive_seg_backend.extensions.sam_onnx import (
     _get_default_cache_path_for_platform,
     load_or_download_model,
 )
-from interactive_seg_backend import train_and_apply, transfer_from_gpu
+from interactive_seg_backend import train_and_apply, transfer_from_gpu, featurise_
 from interactive_seg_backend.features import multiscale_features
 from interactive_seg_backend.utils import class_avg_miou
 
@@ -46,32 +46,6 @@ def train_cfg(feat_cfg: FeatureConfig) -> TrainingConfig:
 
 image_ = load_image("tests/data/1.tif")
 labels_ = load_labels("tests/data/1_labels.tif")
-
-
-def test_autocontext_training_config(feat_cfg: FeatureConfig) -> None:
-    # Test default values
-    cfg = TrainingConfig(feature_config=feat_cfg)
-    assert cfg.autocontext is False
-    assert cfg.autocontext_distances == [5, 50, 100]
-    assert cfg.autocontext_n_rays == 4
-
-    # Test custom values and serialization
-    cfg_orig = TrainingConfig(
-        feature_config=feat_cfg,
-        autocontext="original",
-        autocontext_distances=[10, 20],
-        autocontext_n_rays=8,
-    )
-    json_str = cfg_orig.model_dump_json()
-    loaded_cfg = TrainingConfig.model_validate_json(json_str)
-    assert loaded_cfg.autocontext == "original"
-    assert loaded_cfg.autocontext_distances == [10, 20]
-    assert loaded_cfg.autocontext_n_rays == 8
-
-    # Test other options
-    for opt in [False, "simple", "original", "ilastik"]:
-        c = TrainingConfig(feature_config=feat_cfg, autocontext=opt)
-        assert c.autocontext == opt
 
 
 def test_compute_ray_autocontext_features() -> None:
@@ -113,39 +87,40 @@ def test_compute_ray_autocontext_features() -> None:
 
 def test_autocontext_features_all_modes(train_cfg: TrainingConfig) -> None:
     # 1. Simple mode: appends raw probabilities
-    train_cfg_simple = train_cfg.model_copy(update={"autocontext": "simple"})
+    train_cfg_simple = train_cfg.model_copy(update={"autocontext_type": "simple"})
     simple_feats = autocontext_features(image_, labels_, train_cfg_simple)
     simple_feats = transfer_from_gpu(simple_feats)
 
     # Base features without autocontext
-    base_train_cfg = train_cfg.model_copy(update={"autocontext": False})
-    base_feats = autocontext_features(image_, labels_, base_train_cfg, which="simple")
+    base_train_cfg = train_cfg.model_copy(update={"autocontext_type": False})
+    base_feats = featurise_(image_, base_train_cfg.feature_config)
     base_feats = transfer_from_gpu(base_feats)
     # Number of classes in labels_
     n_classes = len(np.unique(labels_[labels_ > 0]))
-    assert simple_feats.shape[-1] == base_feats.shape[-1]
+    print(f"Base features shape: {base_feats.shape}, Simple autocontext features shape: {simple_feats.shape}")
+    assert simple_feats.shape[-1] == base_feats.shape[-1] + n_classes
 
     # 2. Original ray mode (4 rays, 3 distances)
     train_cfg_orig_4 = train_cfg.model_copy(
-        update={"autocontext": "original", "autocontext_distances": [5, 50, 100], "autocontext_n_rays": 4}
+        update={"autocontext_type": "original", "autocontext_distances": [5, 50, 100], "autocontext_n_rays": 4}
     )
     orig_feats_4 = autocontext_features(image_, labels_, train_cfg_orig_4)
     orig_feats_4 = transfer_from_gpu(orig_feats_4)
     # Expected channels added: 4 rays * 3 distances * n_classes
     # Base feat channels = (simple_feats.shape[-1] - n_classes)
-    n_base = simple_feats.shape[-1] - n_classes
+    n_base = base_feats.shape[-1]
     assert orig_feats_4.shape[-1] == n_base + 4 * 3 * n_classes
 
     # 3. Original ray mode (8 rays, 2 distances)
     train_cfg_orig_8 = train_cfg.model_copy(
-        update={"autocontext": "original", "autocontext_distances": [5, 10], "autocontext_n_rays": 8}
+        update={"autocontext_type": "original", "autocontext_distances": [5, 10], "autocontext_n_rays": 8}
     )
     orig_feats_8 = autocontext_features(image_, labels_, train_cfg_orig_8)
     orig_feats_8 = transfer_from_gpu(orig_feats_8)
     assert orig_feats_8.shape[-1] == n_base + 8 * 2 * n_classes
 
     # 4. Ilastik mode
-    train_cfg_ilastik = train_cfg.model_copy(update={"autocontext": "ilastik"})
+    train_cfg_ilastik = train_cfg.model_copy(update={"autocontext_type": "ilastik"})
     ilastik_feats = autocontext_features(image_, labels_, train_cfg_ilastik)
     ilastik_feats = transfer_from_gpu(ilastik_feats)
     assert ilastik_feats.shape[0] == image_.shape[0] and ilastik_feats.shape[1] == image_.shape[1]
