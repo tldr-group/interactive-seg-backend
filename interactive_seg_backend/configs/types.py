@@ -53,8 +53,12 @@ Preprocessing = Literal["denoise", "equalize", "blur"]
 Postprocessing = Literal["modal_filter"]
 LabellingStrategy = Literal["sparse", "dense", "interfaces"]
 HITLStrategy = Literal["wrong", "uncertainty", "representative_weighted"]
-Extensions = Literal["autocontext_original", "autocontext_ilastik", "rules_vf", "rules_connectivity"]
+Extensions = Literal[
+    "autocontext_original", "autocontext_ilastik", "autocontext_simple", "rules_vf", "rules_connectivity"
+]
 Rules = Literal["vf", "connectivity"]
 ConnectivityObj = Literal["minimise", "maximise", None]
+AutocontextOption = Literal["simple", "original", "ilastik"]
+AutocontextRays = Literal[4, 8]
 
 # TODO: define a feature stack dataclass? image h, w, list of features used to generate it, and save / load helpers (i.e as a paged tiff or .pt)
