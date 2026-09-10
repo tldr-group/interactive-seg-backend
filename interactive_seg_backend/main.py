@@ -104,7 +104,7 @@ def apply(
     if training_cfg.autocontext:
         assert image is not None, "Need Image to do autocontext"
         assert labels is not None, "Need labels to do autocontext"
-        new_feats = autocontext_features(image, labels, training_cfg, features, probs_2D, "autocontext_original")
+        new_feats = autocontext_features(image, labels, training_cfg, features, probs_2D)
         new_feats = transfer_from_gpu(new_feats)
         seg, probs_2D, _ = train_and_apply_(new_feats, labels, training_cfg)
 

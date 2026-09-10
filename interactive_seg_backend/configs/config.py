@@ -1,7 +1,7 @@
 from numpy import log2, logspace
 from pydantic import BaseModel, Field
 from json import load
-from typing import Any, get_args
+from typing import Any, get_args, Literal
 
 from interactive_seg_backend.configs.types import (
     CastTypes,
@@ -10,6 +10,7 @@ from interactive_seg_backend.configs.types import (
     Preprocessing,
     HITLStrategy,
     ConnectivityObj,
+    AutocontextOption,
 )
 from typing import cast
 
@@ -244,6 +245,10 @@ class TrainingConfig(BaseModel):
     modal_filter_k: int = 2
 
     autocontext: bool = False
+    autocontext_type: AutocontextOption = "original"
+    autocontext_distances: list[int] = Field(default_factory=lambda: [5, 50, 100])
+    autocontext_n_rays: Literal[4, 8] = 4
+
     CRF: bool = False
     CRF_params: CRFParams = default_crf_params
     add_dino_features: bool = False

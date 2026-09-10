@@ -83,5 +83,5 @@ class MLP(RandomForest):
         target_data: NPUIntArray,
         sample_weights: NPFloatArray | None = None,
     ):
-        self.model.fit(train_data, target_data)
+        self.model.fit(train_data, target_data, sample_weight=sample_weights)
         return self

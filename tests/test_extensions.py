@@ -17,6 +17,9 @@ from interactive_seg_backend.extensions import (
     SAM_AVAILABLE,
     do_sam_postproc,
 )
+from interactive_seg_backend.extensions.autocontext import (
+    compute_ray_autocontext_features,
+)
 from interactive_seg_backend.extensions.sam_onnx import (
     SAMEncoderONNX,
     SAMDecoderONNX,
@@ -26,7 +29,7 @@ from interactive_seg_backend.extensions.sam_onnx import (
     _get_default_cache_path_for_platform,
     load_or_download_model,
 )
-from interactive_seg_backend import train_and_apply, transfer_from_gpu
+from interactive_seg_backend import train_and_apply, transfer_from_gpu, featurise_
 from interactive_seg_backend.features import multiscale_features
 from interactive_seg_backend.utils import class_avg_miou
 
@@ -45,6 +48,84 @@ image_ = load_image("tests/data/1.tif")
 labels_ = load_labels("tests/data/1_labels.tif")
 
 
+def test_compute_ray_autocontext_features() -> None:
+    # 5x5 grid with hot pixel at center (2, 2)
+    grid = np.zeros((5, 5), dtype=np.float32)
+    grid[2, 2] = 1.0
+
+    # 4 rays (Up, Down, Left, Right) at distance 1
+    rolled_4 = compute_ray_autocontext_features(grid, distances=[1], n_rays=4)
+    assert rolled_4.shape == (5, 5, 4)
+    # Up (-1, 0): rolled up, so pixel at (1, 2) has the value that was at (2, 2)
+    assert rolled_4[1, 2, 0] == 1.0
+    # Down (1, 0): rolled down, so pixel at (3, 2) has value from (2, 2)
+    assert rolled_4[3, 2, 1] == 1.0
+    # Left (0, -1): rolled left, so pixel at (2, 1) has value from (2, 2)
+    assert rolled_4[2, 1, 2] == 1.0
+    # Right (0, 1): rolled right, so pixel at (2, 3) has value from (2, 2)
+    assert rolled_4[2, 3, 3] == 1.0
+
+    # 8 rays at distance 1 includes diagonals
+    rolled_8 = compute_ray_autocontext_features(grid, distances=[1], n_rays=8)
+    assert rolled_8.shape == (5, 5, 8)
+    # Up-Left (-1, -1)
+    assert rolled_8[1, 1, 4] == 1.0
+    # Up-Right (-1, 1)
+    assert rolled_8[1, 3, 5] == 1.0
+    # Down-Left (1, -1)
+    assert rolled_8[3, 1, 6] == 1.0
+    # Down-Right (1, 1)
+    assert rolled_8[3, 3, 7] == 1.0
+
+    # Single-pass multi-distance check (distances 1 and 2)
+    rolled_dist = compute_ray_autocontext_features(grid, distances=[1, 2], n_rays=4)
+    assert rolled_dist.shape == (5, 5, 8)  # 4 rays * 2 distances = 8 channels
+    # Up at dist 1 -> channel 0, Up at dist 2 -> channel 1
+    assert rolled_dist[1, 2, 0] == 1.0
+    assert rolled_dist[0, 2, 1] == 1.0
+
+
+def test_autocontext_features_all_modes(train_cfg: TrainingConfig) -> None:
+    # 1. Simple mode: appends raw probabilities
+    train_cfg_simple = train_cfg.model_copy(update={"autocontext_type": "simple"})
+    simple_feats = autocontext_features(image_, labels_, train_cfg_simple)
+    simple_feats = transfer_from_gpu(simple_feats)
+
+    # Base features without autocontext
+    base_train_cfg = train_cfg.model_copy(update={"autocontext_type": False})
+    base_feats = featurise_(image_, base_train_cfg.feature_config)
+    base_feats = transfer_from_gpu(base_feats)
+    # Number of classes in labels_
+    n_classes = len(np.unique(labels_[labels_ > 0]))
+    print(f"Base features shape: {base_feats.shape}, Simple autocontext features shape: {simple_feats.shape}")
+    assert simple_feats.shape[-1] == base_feats.shape[-1] + n_classes
+
+    # 2. Original ray mode (4 rays, 3 distances)
+    train_cfg_orig_4 = train_cfg.model_copy(
+        update={"autocontext_type": "original", "autocontext_distances": [5, 50, 100], "autocontext_n_rays": 4}
+    )
+    orig_feats_4 = autocontext_features(image_, labels_, train_cfg_orig_4)
+    orig_feats_4 = transfer_from_gpu(orig_feats_4)
+    # Expected channels added: 4 rays * 3 distances * n_classes
+    # Base feat channels = (simple_feats.shape[-1] - n_classes)
+    n_base = base_feats.shape[-1]
+    assert orig_feats_4.shape[-1] == n_base + 4 * 3 * n_classes
+
+    # 3. Original ray mode (8 rays, 2 distances)
+    train_cfg_orig_8 = train_cfg.model_copy(
+        update={"autocontext_type": "original", "autocontext_distances": [5, 10], "autocontext_n_rays": 8}
+    )
+    orig_feats_8 = autocontext_features(image_, labels_, train_cfg_orig_8)
+    orig_feats_8 = transfer_from_gpu(orig_feats_8)
+    assert orig_feats_8.shape[-1] == n_base + 8 * 2 * n_classes
+
+    # 4. Ilastik mode
+    train_cfg_ilastik = train_cfg.model_copy(update={"autocontext_type": "ilastik"})
+    ilastik_feats = autocontext_features(image_, labels_, train_cfg_ilastik)
+    ilastik_feats = transfer_from_gpu(ilastik_feats)
+    assert ilastik_feats.shape[0] == image_.shape[0] and ilastik_feats.shape[1] == image_.shape[1]
+
+
 def test_autocontext_features(
     train_cfg: TrainingConfig,
 ) -> None:
@@ -56,6 +137,25 @@ def test_autocontext_features(
     af_feats = transfer_from_gpu(af_feats)
     pred, _, _ = train_and_apply(af_feats, labels_, train_cfg)
     save_segmentation(pred, "tests/out/1_seg_autocontext.tif")
+
+
+def test_train_and_apply_autocontext_modes(
+    train_cfg: TrainingConfig,
+) -> None:
+    # Test end-to-end apply with autocontext='simple'
+    cfg_simple = train_cfg.model_copy(update={"autocontext": "simple", "n_samples": 5000})
+    feats = multiscale_features(image_, cfg_simple.feature_config)
+    pred_simple, probs_simple, _ = train_and_apply(feats, labels_, cfg_simple, image=image_)
+    assert pred_simple.shape == image_.shape
+    assert probs_simple.shape == (image_.shape[0], image_.shape[1], 2)
+
+    # Test end-to-end apply with autocontext='original'
+    cfg_orig = train_cfg.model_copy(
+        update={"autocontext": "original", "autocontext_distances": [5, 10], "autocontext_n_rays": 4, "n_samples": 5000}
+    )
+    pred_orig, probs_orig, _ = train_and_apply(feats, labels_, cfg_orig, image=image_)
+    assert pred_orig.shape == image_.shape
+    assert probs_orig.shape == (image_.shape[0], image_.shape[1], 2)
 
 
 @pytest.mark.skipif(not CRF_AVAILABLE, reason="requires CRF be installed")
